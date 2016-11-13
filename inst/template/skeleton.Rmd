@@ -1,0 +1,24 @@
+---
+title: "Data Exploration for Dataset ^^DATASET_NAME^^"
+author: "^^AUTHOR_NAME"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    fig_caption: yes
+    theme: cerulean
+  pdf_document: default
+---
+
+<!--
+(Title:
+Author: ^^AUTHOR_NAME^^
+Date: `r Sys.Date()`
+Abstract: The abstract for this article goes here
+Keywords:
+-->
+
+# Introduction
+
+This workbook performs the basic data exploration of the dataset.
