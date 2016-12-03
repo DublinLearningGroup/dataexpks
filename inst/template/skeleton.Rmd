@@ -22,3 +22,12 @@ Keywords:
 # Introduction
 
 This workbook performs the basic data exploration of the dataset.
+
+
+^^LOAD_DATASET^^
+
+
+^^UNIVARIATE_DATA_EXPLORATION^^
+
+
+^^BIVARIATE_DATA_EXPLORATION^^
