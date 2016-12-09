@@ -1,6 +1,6 @@
 ---
-title: "Data Exploration for Dataset ^^DATASET_NAME^^"
-author: "^^AUTHOR_NAME"
+title: "Data Exploration for Dataset __DATASET_NAME__"
+author: "__AUTHOR_NAME__"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -13,21 +13,329 @@ output:
 
 <!--
 (Title:
-Author: ^^AUTHOR_NAME^^
+Author: __AUTHOR_NAME__
 Date: `r Sys.Date()`
 Abstract: The abstract for this article goes here
 Keywords:
 -->
 
+
+```{r knit_opts, include=FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(tidy       = FALSE
+                     ,cache      = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11
+                     )
+
+library(tidyverse)
+library(data.table)
+library(dtplyr)
+
+library(forcats)
+
+library(GGally)
+library(feather)
+
+library(cowplot)
+
+options(width = 90L)
+
+set.seed(42)
+
+#options(datatable.print.nrows      = 10L)
+#options(datatable.prettyprint.char = 80L)
+
+#source("custom_functions.R")
+
+
+### clean_names() sanitises the column names of the data
+clean_names <- function(colnames) {
+    colnames <- gsub(" ",        "_", colnames)
+    colnames <- gsub("/",        "_", colnames)
+    colnames <- gsub("\\.",      "_", colnames)
+    colnames <- gsub("\\-",      "_", colnames)
+    colnames <- gsub("\\(",       "", colnames)
+    colnames <- gsub("\\)",       "", colnames)
+    colnames <- gsub("\\?",       "", colnames)
+    colnames <- gsub("\\%",       "", colnames)
+    colnames <- gsub("\u20AC", "EUR", colnames)
+
+    return(colnames)
+}
+
+
+### Checks if variable is a date/time
+is_date <- function(.x) inherits(.x, c("POSIXt", "POSIXct", "POSIXlt", "Date"))
+
+
+### Returns the category of data type passed to it
+categorise_datatype <- function (x) {
+    if(all(is.na(x))) return("na")
+
+    if(is_date(x))                          "datetime"
+    else if (!is.null(attributes(x)) ||
+             all(is.character(x)))          "discrete"
+    else if (all(is.logical(x)))            "logical"
+    else                                    "continuous"
+}
+
+
+### create_coltype_list() splits columns into various types
+create_coltype_list <- function(data_tbl) {
+    coltypes <- sapply(data_tbl, categorise_datatype)
+
+    split_lst <- sapply(unique(coltypes), function(x)
+        names(coltypes[coltypes %in% x]))
+
+    coltype_lst <- list(
+        split   = split_lst
+       ,columns = coltypes
+    )
+
+    return(coltype_lst)
+}
+
+
+### Creates a subset of rows and columns of a data frame
+create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows) {
+    col_index <- sample(ncol(data_tbl), sample_cols, replace = FALSE) %>%
+        sort
+
+    sample_tbl <- data_tbl %>%
+        mutate_if(function(x) is.character(x) || is.factor(x)
+                 ,function(x) fct_lump(x, n = 14)) %>%
+        mutate_if(is.logical, as.factor) %>%
+        select(col_index) %>%
+        sample_n(sample_rows)
+
+    return(sample_tbl)
+}
+
+
+
+```
+
+
 # Introduction
 
 This workbook performs the basic data exploration of the dataset.
 
+```{r set_exploration_params, echo=TRUE}
+dataexp_level_exclusion_threshold <- 500
 
-^^LOAD_DATASET^^
+dataexp_cat_level_count <- 50
+dataexp_hist_bins_count <- 50
+
+dataexp_pairsplot_itercount <-     5
+dataexp_pairsplot_colcount  <-     8
+dataexp_pairsplot_rowcount  <-  2000
+
+```
 
 
-^^UNIVARIATE_DATA_EXPLORATION^^
+# Load Data
+
+First we load the dataset.
+
+```{r load_dataset, echo=TRUE}
+### Data is loaded into dataset data_tbl here
+#rawdata_tbl
+
+glimpse(rawdata_tbl)
+```
+
+With the raw data loaded up we now remove obvious unique or near-unique variables that are not amenable to basic exploration and plotting.
 
 
-^^BIVARIATE_DATA_EXPLORATION^^
+```{r find_highlevelcount_categorical_variables, echo=TRUE}
+coltype_lst <- create_coltype_list(rawdata_tbl)
+
+catvar_valuecount_tbl <- rawdata_tbl %>%
+    summarise_at(coltype_lst$split$discrete
+                ,function(x) length(unique(x))) %>%
+    gather('var_name', 'level_count') %>%
+    arrange(-level_count)
+
+print(catvar_valuecount_tbl)
+```
+
+Now that we a table of the counts of all the categorical variables we can automatically exclude unique variables from the exploration, as the level count will match the row count.
+
+```{r remove_id_variables, echo=TRUE}
+row_count <- nrow(rawdata_tbl)
+
+unique_vars <- catvar_valuecount_tbl %>%
+    filter(level_count == row_count) %>%
+    .[["var_name"]]
+
+data_tbl <- rawdata_tbl %>%
+    select(-one_of(unique_vars))
+```
+
+Having removed the unique identifier variables from the dataset, we now can continue doing some basic exploration of the data. We may also choose to remove some extra columns from the dataset.
+
+```{r select_exploration_variables, echo=TRUE, results='hide'}
+### You may want to comment out these next few lines to customise which
+### categoricals are kept in the exploration.
+drop_vars <- c()
+
+data_tbl <- data_tbl %>%
+    select(-one_of(drop_vars))
+
+coltype_lst <- create_coltype_list(data_tbl)
+
+glimpse(data_tbl)
+```
+
+
+# Univariate Data Exploration
+
+Now that we have loaded the data we can prepare it for some basic data
+exploration. We first exclude the variables that are unique
+identifiers or similar, and tehen split the remaining variables out
+into various categories to help with the systematic data exploration.
+
+
+## Logical Variables
+
+Logical variables only take two values: TRUE or FALSE. It is useful to see missing data as well though, so we also plot the count of those.
+
+```{r create_univariate_logical_plots, echo=TRUE}
+logical_vars <- coltype_lst$split$logical
+
+for(plot_varname in logical_vars) {
+    cat(paste0(plot_varname, '\n'))
+
+    plot_var <- data_tbl %>%
+        .[[plot_varname]]
+
+    explore_plot <- ggplot() +
+        geom_bar(aes(x = plot_var)) +
+        xlab(plot_varname) +
+        ylab("Count") +
+        scale_y_continuous(labels = scales::comma) +
+        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+    plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+Numeric variables are usually continuous in nature, though we also have integer data.
+
+```{r create_univariate_numeric_plots, echo=TRUE}
+numeric_vars <- coltype_lst$split$continuous
+
+for(plot_varname in numeric_vars) {
+    cat(paste0(plot_varname, '\n'))
+
+    plot_var <- data_tbl %>% .[[plot_varname]]
+
+    na_count <- sum(is.na(plot_var))
+    
+    plot_var <- plot_var[!is.na(plot_var)]
+    
+    explore_plot <- ggplot() +
+        geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
+        geom_vline(xintercept = mean(plot_var), colour = 'red') +
+        geom_vline(xintercept = median(plot_var), colour = 'green') +
+        xlab(plot_varname) +
+        ylab("Count") +
+        scale_x_continuous(labels = scales::comma) +
+        scale_y_continuous(labels = scales::comma) +
+        ggtitle(paste0('Histogram Plot for Variable: ', plot_varname, " (", na_count, " missing values)")
+               ,subtitle = "(red line is mean, green line is median)")
+
+    plot(explore_plot)
+}
+```
+
+## Categorical Variables
+
+Categorical variables only have values from a limited, and usually fixed, number of possible values
+
+```{r create_univariate_categorical_plots, echo=TRUE}
+categorical_vars <- coltype_lst$split$discrete
+
+for(plot_varname in categorical_vars) {
+    cat(paste0(plot_varname, '\n'))
+
+    plot_tbl <- data_tbl %>%
+        .[[plot_varname]] %>%
+        as.character %>%
+        fct_lump(n = dataexp_cat_level_count) %>%
+        fct_count
+
+    explore_plot <- ggplot(plot_tbl) +
+        geom_bar(aes(x = fct_reorder(f, -n), y = n), stat = 'identity') +
+        xlab(plot_varname) +
+        ylab("Count") +
+        scale_y_continuous(labels = scales::comma) +
+        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+    plot(explore_plot)
+}
+```
+
+
+## Date/Time Variables
+
+Date/Time variables represent calendar or time-based data should as time of the day, a date, or a timestamp.
+
+```{r create_univariate_datetime_plots, echo=TRUE}
+datetime_vars <- coltype_lst$split$datetime
+
+for(plot_varname in datetime_vars) {
+    cat(paste0(plot_varname, '\n'))
+
+    plot_var <- data_tbl %>% .[[plot_varname]] %>% year
+
+    explore_plot <- ggplot() +
+        geom_bar(aes(x = plot_var)) +
+        xlab(plot_varname) +
+        ylab("Count") +
+        scale_y_continuous(labels = scales::comma) +
+        ggtitle(paste0('Barplot of Counts for Years in Variable: ', plot_varname))
+
+    plot(explore_plot)
+}
+```
+
+
+
+# Bivariate Data Exploration
+
+Pairs plots area very useful way of getting a quick idea of the relationships between variables in a data set.
+
+Unfortunately, they do not scale well. Too many rows (say more than 5,000) can slow down the rendering, and more than 10 columns can make the plots uninterpretable as each cell is too small.
+
+The technique is useful though, so to circumvent these issues we sample the dataset. We select some random columns and rows, and make a pairsplot of this subset, then repeat this process for a number of samples.
+
+```{r plot_pairsplot, echo=TRUE, warning=FALSE, message=FALSE, fig.width = 20, fig.height=15, cache=TRUE}
+
+if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
+   nrow(data_tbl) > dataexp_pairsplot_rowcount) {
+    for(i in 1:dataexp_pairsplot_itercount) {
+        cat(paste0("Pairs plot iter: ", i, "\n"))
+
+        pairs_tbl <- data_tbl %>%
+            create_ggpairs_tbl(sample_cols = dataexp_pairsplot_colcount
+                              ,sample_rows = dataexp_pairsplot_rowcount
+                               )
+    
+        cat(paste0("Columns: ", paste0(names(pairs_tbl), collapse = ','), "\n"))
+
+        pairs_tbl %>%
+            ggpairs %>%
+            print
+    }
+} else {
+    ggpairs(data_tbl) %>% print
+}
+```
