@@ -25,8 +25,8 @@ rm(list = ls())
 
 knitr::opts_chunk$set(tidy       = FALSE
                      ,cache      = FALSE
-                     ,fig.height =  8
-                     ,fig.width  = 11
+                     ,fig.height =     8
+                     ,fig.width  =    11
                      )
 
 library(tidyverse)
@@ -34,6 +34,7 @@ library(data.table)
 library(dtplyr)
 
 library(forcats)
+library(lubridate)
 
 library(GGally)
 library(feather)
@@ -62,12 +63,14 @@ clean_names <- function(colnames) {
     colnames <- gsub("\\%",       "", colnames)
     colnames <- gsub("\u20AC", "EUR", colnames)
 
+    colnames <- tolower(colnames)
+    
     return(colnames)
 }
 
 
 ### Checks if variable is a date/time
-is_date <- function(.x) inherits(.x, c("POSIXt", "POSIXct", "POSIXlt", "Date"))
+is_date <- function(.x) inherits(.x, c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
 
 
 ### Returns the category of data type passed to it
@@ -99,22 +102,37 @@ create_coltype_list <- function(data_tbl) {
 
 
 ### Creates a subset of rows and columns of a data frame
-create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows) {
-    col_index <- sample(ncol(data_tbl), sample_cols, replace = FALSE) %>%
-        sort
+create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FALSE) {
+    col_index <- sample(ncol(data_tbl), sample_cols, replace = FALSE) %>% sort
 
+    if(verbose) {
+        cat(paste0(names(data_tbl)[col_index], collapse = ','))
+        cat("\n")
+     
+        data_tbl %>% select(col_index) %>% glimpse   
+    }
+    
     sample_tbl <- data_tbl %>%
-        mutate_if(function(x) is.character(x) || is.factor(x)
-                 ,function(x) fct_lump(x, n = 14)) %>%
-        mutate_if(is.logical, as.factor) %>%
         select(col_index) %>%
+        mutate_if(function(x) (is.character(x) || is.factor(x)) && !all(is.na(x))
+                 ,function(x) fct_lump(x, n = 14)) %>%
         sample_n(sample_rows)
 
     return(sample_tbl)
 }
 
 
-
+### Converts Excel-formatted number to numeric
+convert_excel_numeric <- function(x) {
+    gsd <- function(x, find, replace) gsub(find, replace, x)
+    
+    new_val <- x %>%
+        gsd(",", "") %>%
+        gsd("^-$", "0") %>%
+        as.numeric
+    
+    return(new_val)
+}
 ```
 
 
@@ -125,13 +143,12 @@ This workbook performs the basic data exploration of the dataset.
 ```{r set_exploration_params, echo=TRUE}
 dataexp_level_exclusion_threshold <- 500
 
-dataexp_cat_level_count <- 50
+dataexp_cat_level_count <- 40
 dataexp_hist_bins_count <- 50
 
 dataexp_pairsplot_itercount <-     5
-dataexp_pairsplot_colcount  <-     8
+dataexp_pairsplot_colcount  <-     7
 dataexp_pairsplot_rowcount  <-  2000
-
 ```
 
 
@@ -140,53 +157,72 @@ dataexp_pairsplot_rowcount  <-  2000
 First we load the dataset.
 
 ```{r load_dataset, echo=TRUE}
-### Data is loaded into dataset data_tbl here
-#rawdata_tbl
+### Data is loaded into dataset rawdata_tbl here
+
 
 glimpse(rawdata_tbl)
 ```
 
-With the raw data loaded up we now remove obvious unique or near-unique variables that are not amenable to basic exploration and plotting.
 
+## Perform Quick Data Cleaning
+
+
+```{r perform_simple_datatype_transforms, echo=TRUE}
+### Do simple datatype transforms and save output in data_tbl
+
+glimpse(data_tbl)
+```
+
+
+## Inspect High-level-count Categorical Variables
+
+With the raw data loaded up we now remove obvious unique or near-unique
+variables that are not amenable to basic exploration and plotting.
 
 ```{r find_highlevelcount_categorical_variables, echo=TRUE}
-coltype_lst <- create_coltype_list(rawdata_tbl)
+coltype_lst <- create_coltype_list(data_tbl)
 
-catvar_valuecount_tbl <- rawdata_tbl %>%
+catvar_valuecount_tbl <- data_tbl %>%
     summarise_at(coltype_lst$split$discrete
                 ,function(x) length(unique(x))) %>%
     gather('var_name', 'level_count') %>%
     arrange(-level_count)
 
 print(catvar_valuecount_tbl)
+
+row_count <- nrow(data_tbl)
+
+cat(paste0("Dataset has ", row_count, " rows\n"))
 ```
 
-Now that we a table of the counts of all the categorical variables we can automatically exclude unique variables from the exploration, as the level count will match the row count.
+Now that we a table of the counts of all the categorical variables we can
+automatically exclude unique variables from the exploration, as the level
+count will match the row count.
 
 ```{r remove_id_variables, echo=TRUE}
-row_count <- nrow(rawdata_tbl)
-
 unique_vars <- catvar_valuecount_tbl %>%
     filter(level_count == row_count) %>%
     .[["var_name"]]
 
-data_tbl <- rawdata_tbl %>%
+print(unique_vars)
+
+data_tbl <- data_tbl %>%
     select(-one_of(unique_vars))
 ```
 
-Having removed the unique identifier variables from the dataset, we now can continue doing some basic exploration of the data. We may also choose to remove some extra columns from the dataset.
+Having removed the unique identifier variables from the dataset, we now can
+continue doing some basic exploration of the data. We may also choose to
+remove some extra columns from the dataset.
 
-```{r select_exploration_variables, echo=TRUE, results='hide'}
+```{r drop_variables, echo=TRUE}
 ### You may want to comment out these next few lines to customise which
 ### categoricals are kept in the exploration.
 drop_vars <- c()
 
-data_tbl <- data_tbl %>%
-    select(-one_of(drop_vars))
-
-coltype_lst <- create_coltype_list(data_tbl)
-
-glimpse(data_tbl)
+if(length(drop_vars) > 0) {
+    data_tbl <- data_tbl %>%
+        select(-one_of(drop_vars))
+}
 ```
 
 
@@ -198,9 +234,15 @@ identifiers or similar, and tehen split the remaining variables out
 into various categories to help with the systematic data exploration.
 
 
+```{r separate_exploration_cols, echo=TRUE}
+coltype_lst <- create_coltype_list(data_tbl)
+```
+
+
 ## Logical Variables
 
-Logical variables only take two values: TRUE or FALSE. It is useful to see missing data as well though, so we also plot the count of those.
+Logical variables only take two values: TRUE or FALSE. It is useful to see
+missing data as well though, so we also plot the count of those.
 
 ```{r create_univariate_logical_plots, echo=TRUE}
 logical_vars <- coltype_lst$split$logical
@@ -226,7 +268,8 @@ for(plot_varname in logical_vars) {
 
 ## Numeric Variables
 
-Numeric variables are usually continuous in nature, though we also have integer data.
+Numeric variables are usually continuous in nature, though we also have
+integer data.
 
 ```{r create_univariate_numeric_plots, echo=TRUE}
 numeric_vars <- coltype_lst$split$continuous
@@ -248,16 +291,18 @@ for(plot_varname in numeric_vars) {
         ylab("Count") +
         scale_x_continuous(labels = scales::comma) +
         scale_y_continuous(labels = scales::comma) +
-        ggtitle(paste0('Histogram Plot for Variable: ', plot_varname, " (", na_count, " missing values)")
-               ,subtitle = "(red line is mean, green line is median)")
+        ggtitle(paste0('Histogram Plot for Variable: ', plot_varname
+                      ,' (', na_count, ' missing values)')
+               ,subtitle = '(red line is mean, green line is median)')
 
-    plot(explore_plot)
+    print(explore_plot)
 }
 ```
 
 ## Categorical Variables
 
-Categorical variables only have values from a limited, and usually fixed, number of possible values
+Categorical variables only have values from a limited, and usually fixed,
+number of possible values
 
 ```{r create_univariate_categorical_plots, echo=TRUE}
 categorical_vars <- coltype_lst$split$discrete
@@ -286,7 +331,8 @@ for(plot_varname in categorical_vars) {
 
 ## Date/Time Variables
 
-Date/Time variables represent calendar or time-based data should as time of the day, a date, or a timestamp.
+Date/Time variables represent calendar or time-based data should as time of the
+day, a date, or a timestamp.
 
 ```{r create_univariate_datetime_plots, echo=TRUE}
 datetime_vars <- coltype_lst$split$datetime
@@ -311,16 +357,23 @@ for(plot_varname in datetime_vars) {
 
 # Bivariate Data Exploration
 
-Pairs plots area very useful way of getting a quick idea of the relationships between variables in a data set.
+Pairs plots area very useful way of getting a quick idea of the relationships
+between variables in a data set.
 
-Unfortunately, they do not scale well. Too many rows (say more than 5,000) can slow down the rendering, and more than 10 columns can make the plots uninterpretable as each cell is too small.
+Unfortunately, they do not scale well. Too many rows (say more than 5,000) can
+slow down the rendering, and more than 10 columns can make the plots
+uninterpretable as each cell is too small.
 
-The technique is useful though, so to circumvent these issues we sample the dataset. We select some random columns and rows, and make a pairsplot of this subset, then repeat this process for a number of samples.
+The technique is useful, so to circumvent these issues we sample the dataset. We
+select random columns and rows, and make a pairs plot of the subset, repeating
+this process for a number of iterations.
 
-```{r plot_pairsplot, echo=TRUE, warning=FALSE, message=FALSE, fig.width = 20, fig.height=15, cache=TRUE}
+```{r plot_pairsplot, echo=TRUE, warning=FALSE, message=FALSE, fig.width = 20, fig.height=15}
+#theme_set(theme_grey())
 
 if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
    nrow(data_tbl) > dataexp_pairsplot_rowcount) {
+    
     for(i in 1:dataexp_pairsplot_itercount) {
         cat(paste0("Pairs plot iter: ", i, "\n"))
 
@@ -328,11 +381,11 @@ if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
             create_ggpairs_tbl(sample_cols = dataexp_pairsplot_colcount
                               ,sample_rows = dataexp_pairsplot_rowcount
                                )
-    
-        cat(paste0("Columns: ", paste0(names(pairs_tbl), collapse = ','), "\n"))
+
+        cat(paste0("Columns: ", paste0(names(pairs_tbl), collapse = ', '), "\n"))
 
         pairs_tbl %>%
-            ggpairs %>%
+            ggpairs(cardinality_threshold = NULL) %>%
             print
     }
 } else {
