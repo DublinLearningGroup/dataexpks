@@ -21,7 +21,9 @@ Keywords:
 
 
 ```{r knit_opts, include=FALSE}
+
 rm(list = ls())
+
 
 knitr::opts_chunk$set(tidy       = FALSE
                      ,cache      = FALSE
