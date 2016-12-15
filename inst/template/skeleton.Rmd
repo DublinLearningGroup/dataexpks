@@ -32,16 +32,11 @@ knitr::opts_chunk$set(tidy       = FALSE
                      )
 
 library(tidyverse)
-library(data.table)
-library(dtplyr)
-
 library(forcats)
 library(lubridate)
 
 library(GGally)
-library(feather)
 
-library(cowplot)
 
 options(width = 90L)
 
@@ -105,7 +100,17 @@ create_coltype_list <- function(data_tbl) {
 
 ### Creates a subset of rows and columns of a data frame
 create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FALSE) {
-    col_index <- sample(ncol(data_tbl), sample_cols, replace = FALSE) %>% sort
+
+    ncol_data <- ncol(data_tbl)
+    nrow_data <- nrow(data_tbl)
+
+    if(ncol_data > sample_cols) {
+        col_index <- sample(ncol(data_tbl), sample_cols, replace = FALSE) %>% sort
+    } else {
+        col_index <- 1:ncol_data
+    }
+
+    row_count <- ifelse(nrow_data > sample_rows, sample_rows, nrow_data)
 
     if(verbose) {
         cat(paste0(names(data_tbl)[col_index], collapse = ','))
@@ -119,7 +124,7 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
         mutate_if(function(x) (is.character(x) || is.factor(x)) && !all(is.na(x))
                  ,function(x) fct_lump(x, n = 9)) %>%
         mutate_if(is.logical, as.factor) %>%
-        sample_n(sample_rows)
+        sample_n(row_count)
 
     return(sample_tbl)
 }
