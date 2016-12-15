@@ -66,7 +66,7 @@ clean_names <- function(colnames) {
     colnames <- gsub("\u20AC", "EUR", colnames)
 
     colnames <- tolower(colnames)
-    
+
     return(colnames)
 }
 
@@ -110,14 +110,15 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
     if(verbose) {
         cat(paste0(names(data_tbl)[col_index], collapse = ','))
         cat("\n")
-     
-        data_tbl %>% select(col_index) %>% glimpse   
+
+        data_tbl %>% select(col_index) %>% glimpse
     }
-    
+
     sample_tbl <- data_tbl %>%
         select(col_index) %>%
         mutate_if(function(x) (is.character(x) || is.factor(x)) && !all(is.na(x))
-                 ,function(x) fct_lump(x, n = 14)) %>%
+                 ,function(x) fct_lump(x, n = 9)) %>%
+        mutate_if(is.logical, as.factor) %>%
         sample_n(sample_rows)
 
     return(sample_tbl)
@@ -127,12 +128,12 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
 ### Converts Excel-formatted number to numeric
 convert_excel_numeric <- function(x) {
     gsd <- function(x, find, replace) gsub(find, replace, x)
-    
+
     new_val <- x %>%
         gsd(",", "") %>%
         gsd("^-$", "0") %>%
         as.numeric
-    
+
     return(new_val)
 }
 ```
@@ -282,9 +283,9 @@ for(plot_varname in numeric_vars) {
     plot_var <- data_tbl %>% .[[plot_varname]]
 
     na_count <- sum(is.na(plot_var))
-    
+
     plot_var <- plot_var[!is.na(plot_var)]
-    
+
     explore_plot <- ggplot() +
         geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
         geom_vline(xintercept = mean(plot_var), colour = 'red') +
@@ -375,7 +376,7 @@ this process for a number of iterations.
 
 if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
    nrow(data_tbl) > dataexp_pairsplot_rowcount) {
-    
+
     for(i in 1:dataexp_pairsplot_itercount) {
         cat(paste0("Pairs plot iter: ", i, "\n"))
 
