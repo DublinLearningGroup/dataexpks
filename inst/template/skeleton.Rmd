@@ -32,15 +32,15 @@ knitr::opts_chunk$set(tidy       = FALSE
 library(tidyverse)
 library(forcats)
 library(lubridate)
-
+library(scales)
 library(GGally)
+library(cowplot)
+library(Rtsne)
 
 
 options(width = 90L)
 
 set.seed(42)
-
-theme_set(theme_bw())
 
 #source("custom_functions.R")
 
@@ -135,6 +135,16 @@ convert_excel_numeric <- function(x) {
 
     return(new_val)
 }
+
+
+### Identify outliers
+identify_univariate_outliers <- function(x) {
+    outlier_vals <- boxplot.stats(x)$out
+    
+    outlier_point <- x %in% outlier_vals
+    
+    return(outlier_point)
+}
 ```
 
 
@@ -147,10 +157,6 @@ dataexp_level_exclusion_threshold <- 100
 
 dataexp_cat_level_count <- 40
 dataexp_hist_bins_count <- 50
-
-dataexp_pairsplot_itercount <-    10
-dataexp_pairsplot_colcount  <-     7
-dataexp_pairsplot_rowcount  <-  2000
 ```
 
 
@@ -342,7 +348,7 @@ for(plot_varname in logical_vars) {
         geom_bar(aes(x = plot_var)) +
         xlab(plot_varname) +
         ylab("Count") +
-        scale_y_continuous(labels = scales::comma) +
+        scale_y_continuous(labels = comma) +
         ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
@@ -375,8 +381,8 @@ for(plot_varname in numeric_vars) {
         geom_vline(xintercept = median(plot_var), colour = 'green') +
         xlab(plot_varname) +
         ylab("Count") +
-        scale_x_continuous(labels = scales::comma) +
-        scale_y_continuous(labels = scales::comma) +
+        scale_x_continuous(labels = comma) +
+        scale_y_continuous(labels = comma) +
         ggtitle(paste0('Histogram Plot for Variable: ', plot_varname
                       ,' (', na_count, ' missing values)')
                ,subtitle = '(red line is mean, green line is median)')
@@ -404,10 +410,10 @@ for(plot_varname in categorical_vars) {
         fct_count
 
     explore_plot <- ggplot(plot_tbl) +
-        geom_bar(aes(x = fct_reorder(f, -n), y = n), stat = 'identity') +
+        geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
         xlab(plot_varname) +
         ylab("Count") +
-        scale_y_continuous(labels = scales::comma) +
+        scale_y_continuous(labels = comma) +
         ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
@@ -434,12 +440,13 @@ for(plot_varname in datetime_vars) {
         geom_bar(aes(x = plot_var)) +
         xlab(plot_varname) +
         ylab("Count") +
-        scale_y_continuous(labels = scales::comma) +
+        scale_y_continuous(labels = comma) +
         ggtitle(paste0('Barplot of Counts for Years in Variable: ', plot_varname))
 
     plot(explore_plot)
 }
 ```
+
 
 
 # Bivariate Data Exploration
@@ -460,6 +467,10 @@ select random columns and rows, and make a pairs plot of the subset, repeating
 this process for a number of iterations.
 
 ```{r plot_pairsplot, echo=TRUE, warning=FALSE, message=FALSE, fig.width = 20, fig.height=15}
+dataexp_pairsplot_itercount <-    10
+dataexp_pairsplot_colcount  <-     7
+dataexp_pairsplot_rowcount  <-  5000
+
 if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
    nrow(data_tbl) > dataexp_pairsplot_rowcount) {
 
@@ -498,13 +509,17 @@ if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
 }
 ```
 
+```{r free_memory_bivariateplots, echo=FALSE, warning=FALSE}
+rm(conv_tbl, pairs_tbl)
+```
+
 
 ## Facet Plots on Variables
 
 We want to look at how the variables split on the logical variables as this is a very natural way to observe the data.
 
 ```{r bivariate_facet_data, echo=TRUE}
-facet_varname   <- logical_vars[1]
+facet_varname   <- ''
 facet_count_max <- 3
 facet_formula   <- formula(paste0("~ as.factor(", facet_varname, ")"))
 ```
@@ -550,8 +565,6 @@ for(plot_varname in logical_vars) {
 For numeric variables, we facet on histograms of the data.
 
 ```{r create_bivariate_numeric_plots, echo=TRUE}
-numeric_vars <- numeric_vars[!numeric_vars %in% facet_varname]
-
 for(plot_varname in numeric_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
@@ -620,8 +633,6 @@ for(plot_varname in categorical_vars) {
 Like the univariate plots, we facet on histograms of the years in the dates.
 
 ```{r create_bivariate_datetime_plots, echo=TRUE}
-datetime_vars <- datetime_vars[!datetime_vars %in% facet_varname]
-
 for(plot_varname in datetime_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
@@ -651,6 +662,135 @@ for(plot_varname in datetime_vars) {
 }
 ```
 
+```{r free_memory_facetplot, echo=FALSE}
+rm(plot_var, outlier_point, plot_tbl)
+```
+
+
+# Multivariate Visualisation
+
+Having looked at the pairs plots we also look at multivariate plots of all the data. We do this using techniques known as 'multidimensional scaling' or MDS.
+
+Many of these techniques do not scale well beyond a few thousand data points, so we repeat our sampling trick as before and create multiple plots from these samples.
+
+## Multidimensional Scaling
+
+We start with classic multidimensional scaling, also called 'principal coordinates analysis', which is done in R via the function `cmdscale`.
+
+```{r create_mds_plots, echo=TRUE}
+mds_iter_count   <-    4
+mds_sample_count <- 2000
+
+row_ids <- data_tbl %>%
+    select(one_of(numeric_vars)) %>%
+    complete.cases
+
+colour_var <- categorical_vars[1]
+
+if(nrow(data_tbl) > mds_sample_count) {
+    for(i in 1:mds_iter_count) {
+        cat("--\n")
+        cat(paste0("MDS plot iter: ", i, "\n"))
+
+        sample_tbl <- data_tbl %>%
+            filter(row_ids) %>%
+            sample_n(dataexp_multivar_rowcount)
+        
+        num_mds_dist <- sample_tbl %>% dist
+
+        num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
+        
+        sample_tbl <- sample_tbl %>%
+            mutate(mds_d1 = num_mds$points[,1]
+                  ,mds_d2 = num_mds$points[,2])
+
+        mds_plot <- ggplot(sample_tbl) +
+            geom_point(aes_string(x = 'mds_d1', y = 'mds_d2', colour = colour_var)) +
+            xlab("MDS Dim 1") +
+            ylab("MDS Dim 2")
+
+        print(mds_plot)
+    }
+} else {
+    sample_tbl <- data_tbl %>%
+        filter(row_ids)
+    
+    num_mds_dist <- sample_tbl %>% dist
+
+    num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
+        
+    sample_tbl <- sample_tbl %>%
+        mutate(mds_d1 = num_mds$points[,1]
+              ,mds_d2 = num_mds$points[,2])
+
+    mds_plot <- ggplot(sample_tbl) +
+        geom_point(aes_string(x = 'mds_d1', y = 'mds_d2', colour = colour_var)) +
+        xlab("MDS Dim 1") +
+        ylab("MDS Dim 2")
+
+    print(mds_plot)
+}
+```
+
+
+## t-SNE Plots
+
+One standard method for doing this is t-SNE, t-distributed Stochastic Neighbourhood Embedding. This algorithm is a type of dimensionality reduction - it constructs a lower-dimensional set of data from the original dataset by attempting the minimise the Kullback-Lieber divergence between the original and target datasets.
+
+t-SNE requires unique datapoints, so to ensure we do not pass repeated rows at any point, we may add a small amount of noise to the numeric columns to ensure uniqueness - t-SNE is a probabilistic process so this should not affect our output very much.
+
+As with previous methods, we take samples from larger datasets and plot outputs from multiple samples.
+
+```{r create_tsne_plots, echo=TRUE}
+tsne_iter_count   <-     4
+tsne_sample_count <- 10000
+
+row_ids <- data_tbl %>%
+    select(one_of(numeric_vars)) %>%
+    complete.cases
+
+colour_var <- categorical_vars[1]
+
+
+if(nrow(data_tbl) > tsne_sample_count) {
+    for(i in 1:tsne_iter_count) {
+        cat("--\n")
+        cat(paste0("t-SNE plot iter: ", i, "\n"))
+
+        tsne_tbl <- sample_tbl %>%
+            sample_n(tsne_sample_count)
+
+        data_tsne <- Rtsne(tsne_tbl %>% select(one_of(numeric_vars)))
+        
+        tsne_tbl$tsne_d1 <- data_tsne$Y[,1]
+        tsne_tbl$tsne_d2 <- data_tsne$Y[,2]
+        
+        tsne_plot <- ggplot(tsne_tbl) +
+            geom_point(aes_string(x = 'tsne_d1', y = 'tsne_d2', colour = colour_var)
+                      ,size = 0.5) +
+            xlab("t-SNE Dim 1") +
+            ylab("t-SNE Dim 2")
+
+        print(tsne_plot)
+    }
+} else {
+    tsne_tbl <- sample_tbl
+    
+    data_tsne <- Rtsne(tsne_tbl %>% select(one_of(numeric_vars)))
+    
+    tsne_tbl$tsne_d1 <- data_tsne$Y[,1]
+    tsne_tbl$tsne_d2 <- data_tsne$Y[,2]
+    
+    tsne_plot <- ggplot(tsne_tbl) +
+        geom_point(aes_string(x = 'tsne_d1', y = 'tsne_d2', colour = colour_var)
+                             ,size = 0.5) +
+        xlab("t-SNE Dim 1") +
+        ylab("t-SNE Dim 2")
+    
+    print(tsne_plot)
+}
+```
+
 
 # Outlier Identification
 
@@ -660,7 +800,7 @@ In keeping with the methodical approach we start with a univariate perspective, 
 
 ## Univariate Outlier Plots
 
-```{r outlier_univariate_numeric_plots, echo=TRUE, warning=FALSE}
+```{r outlier_univariate_numeric_plots, echo=TRUE, warning=FALSE, fig.width = 20, fig.height=15}
 for(plot_varname in numeric_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
@@ -716,14 +856,22 @@ We think of the Mahalanobis distance as being an extension of the standard Eucli
 
 To perform this calculation we need estimates for $\mu$ and $\Sigma$. As we are assuming the presence of outliers, we use robust methods to obtain our estimates of the mean and the covariance. The `cov.rob()` function from the `MASS` package is used. For simplicity, we start with just the numerical variables, extending this approach after.
 
-```{r estimate_data_mean_covariance, echo=TRUE, cache=TRUE}
+```{r use_numeric_variables, echo=TRUE}
 #num_data_tbl <- data_tbl %>% select(one_of(numeric_vars)) %>% filter(complete.cases(.))
 
-complete_flag <- num_data_tbl %>% complete.cases
 
+num_data_tbl <- data_tbl %>%
+    select(prem_ape, policy_duration, mort_rating, sum_assured)
+
+complete_flag <- num_data_tbl %>% complete.cases
+```
+
+Now that we have a dataset of numeric variables with no missing data we calculate robust estimates for the mean and covariance of the data.
+
+```{r estimate_data_mean_covariance, echo=TRUE}
 mcd_estimate <- num_data_tbl %>%
     filter(complete_flag) %>%
-    MASS::cov.rob(cor = TRUE, method = 'mcd')
+    robustbase::covMcd()
 ```
 
 With robust estimates for both the mean and covariance, we now calculate the Mahalanobis distance for each of the datapoints.
