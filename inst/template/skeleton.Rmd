@@ -51,13 +51,19 @@ clean_names <- function(colnames) {
     colnames <- gsub("/",        "_", colnames)
     colnames <- gsub("\\.",      "_", colnames)
     colnames <- gsub("\\-",      "_", colnames)
+    colnames <- gsub("'",         "", colnames)
+    colnames <- gsub("`",         "", colnames)
     colnames <- gsub("\\(",       "", colnames)
     colnames <- gsub("\\)",       "", colnames)
     colnames <- gsub("\\?",       "", colnames)
     colnames <- gsub("\\%",       "", colnames)
+    colnames <- gsub("\u2019",    "", colnames) 
     colnames <- gsub("\u20AC", "EUR", colnames)
 
-    colnames <- tolower(colnames)
+    colnames <- colnames %>%
+        gsub('(.)([A-Z][a-z]+)',  '\\1_\\2', .) %>%
+        gsub('([a-z0-9])([A-Z])', '\\1_\\2', .) %>%
+        tolower
 
     return(colnames)
 }
@@ -166,7 +172,7 @@ First we load the dataset.
 
 ```{r load_dataset, echo=TRUE}
 ### Data is loaded into dataset rawdata_tbl here
-#rawdata_tbl
+#rawdata_tbl <- read_delim(DATA_FILE, delim = ',')
 
 names(rawdata_tbl) <- rawdata_tbl %>% names %>% clean_names
 
@@ -210,7 +216,7 @@ ggplot(missing_univariate_tbl) +
     geom_bar(aes(x = fct_reorder(variable, -missing_count), weight = missing_count)) +
     scale_y_continuous(labels = comma) +
     xlab("Variable") +
-    ylab("Missing Value Percentage") +
+    ylab("Missing Value Count") +
     theme(axis.text.x = element_text(angle = 90))
 ```
 
@@ -519,7 +525,10 @@ rm(conv_tbl, pairs_tbl)
 We want to look at how the variables split on the logical variables as this is a very natural way to observe the data.
 
 ```{r bivariate_facet_data, echo=TRUE}
-facet_varname   <- ''
+### _TEMPLATE_
+### facet_varname <- ''
+facet_varname   <- coltype_lst$split$discrete[1]
+
 facet_count_max <- 3
 facet_formula   <- formula(paste0("~ as.factor(", facet_varname, ")"))
 ```
@@ -694,7 +703,7 @@ if(nrow(data_tbl) > mds_sample_count) {
 
         sample_tbl <- data_tbl %>%
             filter(row_ids) %>%
-            sample_n(dataexp_multivar_rowcount)
+            sample_n(mds_sample_count)
         
         num_mds_dist <- sample_tbl %>% dist
 
@@ -857,11 +866,8 @@ We think of the Mahalanobis distance as being an extension of the standard Eucli
 To perform this calculation we need estimates for $\mu$ and $\Sigma$. As we are assuming the presence of outliers, we use robust methods to obtain our estimates of the mean and the covariance. The `cov.rob()` function from the `MASS` package is used. For simplicity, we start with just the numerical variables, extending this approach after.
 
 ```{r use_numeric_variables, echo=TRUE}
-#num_data_tbl <- data_tbl %>% select(one_of(numeric_vars)) %>% filter(complete.cases(.))
-
-
 num_data_tbl <- data_tbl %>%
-    select(prem_ape, policy_duration, mort_rating, sum_assured)
+    select(one_of(numeric_vars))
 
 complete_flag <- num_data_tbl %>% complete.cases
 ```
