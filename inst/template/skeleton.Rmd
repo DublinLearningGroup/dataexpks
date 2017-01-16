@@ -151,6 +151,23 @@ identify_univariate_outliers <- function(x) {
     
     return(outlier_point)
 }
+
+
+### Jitter numeric variable
+add_jitter <- function(x) x * rlnorm(length(x), 0, 0.0001)
+
+
+### Jitter numeric data to assist with uniqueness
+jitter_numeric_variables <- function(data_tbl) {
+    data_tbl <- data_tbl %>%
+        mutate_if(is.numeric, add_jitter)
+
+    return(data_tbl)
+}
+
+
+
+
 ```
 
 
@@ -172,7 +189,7 @@ First we load the dataset.
 
 ```{r load_dataset, echo=TRUE}
 ### Data is loaded into dataset rawdata_tbl here
-#rawdata_tbl <- read_delim(DATA_FILE, delim = ',')
+#rawdata_tbl <- read_csv(DATA_FILE, progress = FALSE)
 
 names(rawdata_tbl) <- rawdata_tbl %>% names %>% clean_names
 
@@ -696,7 +713,7 @@ row_ids <- data_tbl %>%
 
 colour_var <- categorical_vars[1]
 
-if(nrow(data_tbl) > mds_sample_count) {
+if((data_tbl %>% filter(row_ids) %>% nrow) > mds_sample_count) {
     for(i in 1:mds_iter_count) {
         cat("--\n")
         cat(paste0("MDS plot iter: ", i, "\n"))
@@ -761,7 +778,11 @@ row_ids <- data_tbl %>%
 colour_var <- categorical_vars[1]
 
 
-if(nrow(data_tbl) > tsne_sample_count) {
+if((data_tbl %>% filter(row_ids) %>% nrow) > tsne_sample_count) {
+    sample_tbl <- data_tbl %>%
+        jitter_numeric_variables %>%
+        filter(row_ids)
+
     for(i in 1:tsne_iter_count) {
         cat("--\n")
         cat(paste0("t-SNE plot iter: ", i, "\n"))
