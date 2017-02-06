@@ -57,7 +57,7 @@ clean_names <- function(colnames) {
     colnames <- gsub("\\)",       "", colnames)
     colnames <- gsub("\\?",       "", colnames)
     colnames <- gsub("\\%",       "", colnames)
-    colnames <- gsub("\u2019",    "", colnames) 
+    colnames <- gsub("\u2019",    "", colnames)
     colnames <- gsub("\u20AC", "EUR", colnames)
 
     colnames <- colnames %>%
@@ -126,29 +126,33 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
         select(col_index) %>%
         sample_n(row_count)
 
+
+    ### Check we are not missing any data
+    missing_check <- (sample_tbl %>% filter(complete.cases(.)) %>% nrow) == 0
+
+    ### Check data is not same value down column
+    unique_val_count <- sample_tbl %>%
+        summarise_all(function(x) x %>% unique %>% length) %>%
+        gather %>%
+        filter(value == 1) %>%
+        nrow
+    same_check <- (unique_val_count > 0)
+
+    if(missing_check || same_check) {
+        sample_tbl <- create_ggpairs_tbl(data_tbl, sample_cols, sample_rows)
+    }
+
+
     return(sample_tbl)
-}
-
-
-### Converts Excel-formatted number to numeric
-convert_excel_numeric <- function(x) {
-    gsd <- function(x, find, replace) gsub(find, replace, x)
-
-    new_val <- x %>%
-        gsd(",", "") %>%
-        gsd("^-$", "0") %>%
-        as.numeric
-
-    return(new_val)
 }
 
 
 ### Identify outliers
 identify_univariate_outliers <- function(x) {
     outlier_vals <- boxplot.stats(x)$out
-    
+
     outlier_point <- x %in% outlier_vals
-    
+
     return(outlier_point)
 }
 
@@ -188,10 +192,22 @@ dataexp_hist_bins_count <- 50
 First we load the dataset.
 
 ```{r load_dataset, echo=TRUE}
+### _TEMPLATE_
 ### Data is loaded into dataset rawdata_tbl here
-#rawdata_tbl <- read_csv(DATA_FILE, progress = FALSE)
 
-names(rawdata_tbl) <- rawdata_tbl %>% names %>% clean_names
+### We may wish to set column typs
+#data_col_types <- cols(
+#    VAR1 = col_character()
+#   ,VAR2 = col_date()
+#   ,VAR3 = col_number()
+#)
+
+### Data is loaded into dataset rawdata_tbl here
+#rawdata_tbl <- read_csv(DATAFILE
+#                       ,locale    = locale()
+#                       ,col_types = data_col_types
+#                       ,progress  = FALSE
+#                       )
 
 glimpse(rawdata_tbl)
 ```
@@ -201,8 +217,11 @@ glimpse(rawdata_tbl)
 
 
 ```{r perform_simple_datatype_transforms, echo=TRUE}
+### _TEMPLATE_
 ### Do simple datatype transforms and save output in data_tbl
 data_tbl <- rawdata_tbl
+
+names(data_tbl) <- rawdata_tbl %>% names %>% clean_names
 
 glimpse(data_tbl)
 ```
@@ -215,6 +234,7 @@ in the dataset. In some cases, missing data is coded by a special
 character rather than as a blank, so we first correct for this.
 
 ```{r replace_missing_character, echo=TRUE}
+### _TEMPLATE_
 ### ADD CODE TO CORRECT FOR DATA ENCODING HERE
 ```
 
@@ -225,26 +245,72 @@ With missing data properly encoded, we now visualise the missing data in a numbe
 We first examine a simple univariate count of all the missing data:
 
 ```{r missing_data_univariate_count, echo=TRUE}
-missing_univariate_tbl <- rawdata_tbl %>%
+row_count <- data_tbl %>% nrow
+
+missing_univariate_tbl <- data_tbl %>%
     summarise_each(funs(sum(is.na(.)))) %>%
-    gather('variable','missing_count')
+    gather('variable','missing_count') %>%
+    mutate(missing_prop = missing_count / row_count)
 
 ggplot(missing_univariate_tbl) +
-    geom_bar(aes(x = fct_reorder(variable, -missing_count), weight = missing_count)) +
+    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
     scale_y_continuous(labels = comma) +
     xlab("Variable") +
-    ylab("Missing Value Count") +
+    ylab("Missing Value Proportion") +
     theme(axis.text.x = element_text(angle = 90))
 ```
+
+We remove all variables where all of the entries are missing
+
+```{r remove_entirely_missing_vars, echo=TRUE}
+remove_vars <- missing_univariate_tbl %>%
+    filter(missing_count == row_count) %>%
+    .[['variable']]
+
+lessmiss_data_tbl <- data_tbl %>%
+    select(-one_of(remove_vars))
+```
+
+With these columns removed, we repeat the exercise.
+
+```{r missing_data_univariate_count_redux, echo=TRUE}
+missing_univariate_tbl <- lessmiss_data_tbl %>%
+    summarise_each(funs(sum(is.na(.)))) %>%
+    gather('variable','missing_count') %>%
+    mutate(missing_prop = missing_count / row_count)
+
+ggplot(missing_univariate_tbl) +
+    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Variable") +
+    ylab("Missing Value Proportion") +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+
+To reduce the scale of this plot, we look at the top twenty missing data counts.
+
+```{r missing_data_univariate_top10_count, echo=TRUE}
+missing_univariate_top_tbl <- missing_univariate_tbl %>%
+    arrange(desc(missing_count)) %>%
+    top_n(n = 50, wt = missing_count)
+
+ggplot(missing_univariate_top_tbl) +
+    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Variable") +
+    ylab("Missing Value Proportion") +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+
 
 ### Multivariate Missing Data
 
 It is useful to get an idea of what combinations of variables tend to have variables with missing values simultaneously, so to construct a visualisation for this we create a count of all the times given combinations of variables have missing values, producing a heat map for these combination counts.
 
 ```{r missing_data_matrix, echo=TRUE}
-row_count <- rawdata_tbl %>% nrow
-
-missing_tbl <- rawdata_tbl %>%
+missing_plot_tbl <- rawdata_tbl %>%
     mutate_all(funs(is.na)) %>%
     mutate_all(funs(as.numeric)) %>%
     mutate(label = do.call(paste0, (.))) %>%
@@ -256,9 +322,9 @@ missing_tbl <- rawdata_tbl %>%
     gather('col','count', -rowid) %>%
     mutate(Proportion = count / row_count
           ,rowid      = round(rowid / row_count, 4)
-          )
+    )
 
-ggplot(missing_tbl) +
+ggplot(missing_plot_tbl) +
     geom_tile(aes(x = col, y = as.factor(rowid), fill = Proportion), height = 0.8) +
     scale_fill_continuous(labels = comma) +
     scale_x_discrete(position = 'top') +
@@ -329,12 +395,13 @@ also choose to remove some extra columns from the dataset.
 drop_vars <- c(highcount_vars)
 
 if(length(drop_vars) > 0) {
-    data_tbl <- data_tbl %>%
+    explore_data_tbl <- data_tbl %>%
         select(-one_of(drop_vars))
 
 cat(paste0(drop_vars, collapse = ', '))
 }
 ```
+
 
 
 # Univariate Data Exploration
@@ -346,7 +413,7 @@ into various categories to help with the systematic data exploration.
 
 
 ```{r separate_exploration_cols, echo=TRUE}
-coltype_lst <- create_coltype_list(data_tbl)
+coltype_lst <- create_coltype_list(explore_data_tbl)
 
 print(coltype_lst)
 ```
@@ -364,15 +431,15 @@ for(plot_varname in logical_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    plot_var <- data_tbl %>%
-        .[[plot_varname]]
+    na_count <- data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
 
-    explore_plot <- ggplot() +
-        geom_bar(aes(x = plot_var)) +
+    explore_plot <- ggplot(explore_data_tbl) +
+        geom_bar(aes_string(x = plot_varname)) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
+        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
+                      ,' (', na_count, ' missing values)')) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
     plot(explore_plot)
@@ -392,14 +459,11 @@ for(plot_varname in numeric_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    plot_var <- data_tbl %>% .[[plot_varname]]
+    plot_var <- explore_data_tbl %>% .[[plot_varname]]
+    na_count <- plot_var %>% is.na %>% sum
 
-    na_count <- sum(is.na(plot_var))
-
-    plot_var <- plot_var[!is.na(plot_var)]
-
-    explore_plot <- ggplot() +
-        geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
+    explore_plot <- ggplot(explore_data_tbl) +
+        geom_histogram(aes_string(x = plot_varname), bins = dataexp_hist_bins_count) +
         geom_vline(xintercept = mean(plot_var), colour = 'red') +
         geom_vline(xintercept = median(plot_var), colour = 'green') +
         xlab(plot_varname) +
@@ -426,7 +490,9 @@ for(plot_varname in categorical_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    plot_tbl <- data_tbl %>%
+    na_count <- explore_data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
+
+    plot_tbl <- explore_data_tbl %>%
         .[[plot_varname]] %>%
         as.character %>%
         fct_lump(n = dataexp_cat_level_count) %>%
@@ -437,7 +503,8 @@ for(plot_varname in categorical_vars) {
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname)) +
+        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
+                       ,' (', na_count, ' missing values)')) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
     plot(explore_plot)
@@ -457,19 +524,25 @@ for(plot_varname in datetime_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    plot_var <- data_tbl %>% .[[plot_varname]] %>% year
+    plot_var <- data_tbl %>% .[[plot_varname]]
 
     explore_plot <- ggplot() +
         geom_bar(aes(x = plot_var)) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Counts for Years in Variable: ', plot_varname))
+        ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname
+                       ,' (', na_count, ' missing values)'))
 
     plot(explore_plot)
 }
 ```
 
+
+
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
 
 
 # Bivariate Data Exploration
@@ -498,11 +571,11 @@ if(ncol(data_tbl) > dataexp_pairsplot_colcount ||
    nrow(data_tbl) > dataexp_pairsplot_rowcount) {
 
     ### Ugly hack to work around current dplyr bug for mutate_if
-    if(any(sapply(data_tbl, is.logical))) {
-        conv_tbl <- data_tbl %>%
+    if(any(sapply(explore_data_tbl, is.logical))) {
+        conv_tbl <- explore_data_tbl %>%
             mutate_if(is.logical, as.factor)
     } else {
-        conv_tbl <- data_tbl
+        conv_tbl <- explore_data_tbl
     }
 
     conv_tbl <- conv_tbl %>%
@@ -571,7 +644,7 @@ for(plot_varname in logical_vars) {
         unique %>%
         length %>%
         min(facet_count_max)
-    
+
     explore_plot <- ggplot(plot_tbl) +
         geom_bar(aes_string(x = plot_varname)) +
         facet_wrap(facet_formula, scales = 'free') +
@@ -693,6 +766,11 @@ rm(plot_var, outlier_point, plot_tbl)
 ```
 
 
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
+
+
 # Multivariate Visualisation
 
 Having looked at the pairs plots we also look at multivariate plots of all the data. We do this using techniques known as 'multidimensional scaling' or MDS.
@@ -711,6 +789,10 @@ row_ids <- data_tbl %>%
     select(one_of(numeric_vars)) %>%
     complete.cases
 
+
+### _TEMPLATE_
+### Choosing the first variable in the categorical list by default. You probably
+### want to change that.
 colour_var <- categorical_vars[1]
 
 if((data_tbl %>% filter(row_ids) %>% nrow) > mds_sample_count) {
@@ -721,11 +803,11 @@ if((data_tbl %>% filter(row_ids) %>% nrow) > mds_sample_count) {
         sample_tbl <- data_tbl %>%
             filter(row_ids) %>%
             sample_n(mds_sample_count)
-        
+
         num_mds_dist <- sample_tbl %>% dist
 
         num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
-        
+
         sample_tbl <- sample_tbl %>%
             mutate(mds_d1 = num_mds$points[,1]
                   ,mds_d2 = num_mds$points[,2])
@@ -740,11 +822,11 @@ if((data_tbl %>% filter(row_ids) %>% nrow) > mds_sample_count) {
 } else {
     sample_tbl <- data_tbl %>%
         filter(row_ids)
-    
+
     num_mds_dist <- sample_tbl %>% dist
 
     num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
-        
+
     sample_tbl <- sample_tbl %>%
         mutate(mds_d1 = num_mds$points[,1]
               ,mds_d2 = num_mds$points[,2])
@@ -775,8 +857,11 @@ row_ids <- data_tbl %>%
     select(one_of(numeric_vars)) %>%
     complete.cases
 
-colour_var <- categorical_vars[1]
 
+### _TEMPLATE_
+### Choosing the first variable in the categorical list by default. You probably
+### want to change that.
+colour_var <- categorical_vars[1]
 
 if((data_tbl %>% filter(row_ids) %>% nrow) > tsne_sample_count) {
     sample_tbl <- data_tbl %>%
@@ -791,10 +876,10 @@ if((data_tbl %>% filter(row_ids) %>% nrow) > tsne_sample_count) {
             sample_n(tsne_sample_count)
 
         data_tsne <- Rtsne(tsne_tbl %>% select(one_of(numeric_vars)))
-        
+
         tsne_tbl$tsne_d1 <- data_tsne$Y[,1]
         tsne_tbl$tsne_d2 <- data_tsne$Y[,2]
-        
+
         tsne_plot <- ggplot(tsne_tbl) +
             geom_point(aes_string(x = 'tsne_d1', y = 'tsne_d2', colour = colour_var)
                       ,size = 0.5) +
@@ -805,20 +890,25 @@ if((data_tbl %>% filter(row_ids) %>% nrow) > tsne_sample_count) {
     }
 } else {
     tsne_tbl <- sample_tbl
-    
+
     data_tsne <- Rtsne(tsne_tbl %>% select(one_of(numeric_vars)))
-    
+
     tsne_tbl$tsne_d1 <- data_tsne$Y[,1]
     tsne_tbl$tsne_d2 <- data_tsne$Y[,2]
-    
+
     tsne_plot <- ggplot(tsne_tbl) +
         geom_point(aes_string(x = 'tsne_d1', y = 'tsne_d2', colour = colour_var)
                              ,size = 0.5) +
         xlab("t-SNE Dim 1") +
         ylab("t-SNE Dim 2")
-    
+
     print(tsne_plot)
 }
+```
+
+
+```{r, echo=FALSE}
+knitr::knit_exit()
 ```
 
 
@@ -840,7 +930,7 @@ for(plot_varname in numeric_vars) {
     outlier_point <- identify_univariate_outliers(plot_var)
 
     no_outlier_vals <- plot_var[outlier_point]
-        
+
     all_plot <- ggplot() +
         geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
         xlab(plot_varname) +
@@ -944,4 +1034,3 @@ ggplot(data_tbl %>% filter(mcd_outlier == FALSE)) +
     ylab("Mahalanobis Distance") +
     ggtitle("No-Outlier Percentile Plot of Mahalanobis Distance")
 ```
-
