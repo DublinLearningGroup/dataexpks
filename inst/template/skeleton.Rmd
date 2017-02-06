@@ -168,10 +168,6 @@ jitter_numeric_variables <- function(data_tbl) {
 
     return(data_tbl)
 }
-
-
-
-
 ```
 
 
