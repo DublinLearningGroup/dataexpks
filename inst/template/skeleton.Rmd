@@ -400,7 +400,7 @@ if(length(drop_vars) > 0) {
     explore_data_tbl <- data_tbl %>%
         select(-one_of(drop_vars))
 
-cat(paste0(drop_vars, collapse = ', '))
+    cat(paste0(drop_vars, collapse = ', '))
 }
 ```
 
@@ -430,7 +430,7 @@ print(coltype_lst)
 Logical variables only take two values: TRUE or FALSE. It is useful to see
 missing data as well though, so we also plot the count of those.
 
-```{r create_univariate_logical_plots, echo=TRUE}
+```{r create_univariate_logical_plots, echo=TRUE, warning=FALSE}
 logical_vars <- coltype_lst$split$logical
 
 for(plot_varname in logical_vars) {
@@ -458,7 +458,7 @@ for(plot_varname in logical_vars) {
 Numeric variables are usually continuous in nature, though we also have
 integer data.
 
-```{r create_univariate_numeric_plots, echo=TRUE}
+```{r create_univariate_numeric_plots, echo=TRUE, warning=FALSE}
 numeric_vars <- coltype_lst$split$continuous
 
 for(plot_varname in numeric_vars) {
@@ -491,7 +491,7 @@ for(plot_varname in numeric_vars) {
 Categorical variables only have values from a limited, and usually fixed,
 number of possible values
 
-```{r create_univariate_categorical_plots, echo=TRUE}
+```{r create_univariate_categorical_plots, echo=TRUE, warning=FALSE}
 categorical_vars <- coltype_lst$split$discrete
 
 for(plot_varname in categorical_vars) {
@@ -525,17 +525,20 @@ for(plot_varname in categorical_vars) {
 Date/Time variables represent calendar or time-based data should as time of the
 day, a date, or a timestamp.
 
-```{r create_univariate_datetime_plots, echo=TRUE}
+```{r create_univariate_datetime_plots, echo=TRUE, warning=FALSE}
 datetime_vars <- coltype_lst$split$datetime
 
 for(plot_varname in datetime_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    na_count <- explore_data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
+    plot_var <- explore_data_tbl %>% .[[plot_varname]]
+    na_count <- plot_var %>% is.na %>% sum
+    
+    plot_var %>% summary %>% print
 
     explore_plot <- ggplot(explore_data_tbl) +
-        geom_bar(aes_string(x = plot_varname)) +
+        geom_histogram(aes_string(x = plot_varname), bins = dataexp_hist_bins_count) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
@@ -626,6 +629,7 @@ We want to look at how the variables split on the logical variables as this is a
 ### _TEMPLATE_
 ### facet_varname <- ''
 facet_varname   <- coltype_lst$split$discrete[1]
+
 
 facet_count_max <- 3
 facet_formula   <- formula(paste0("~ as.factor(", facet_varname, ")"))
@@ -775,7 +779,7 @@ rm(plot_var, outlier_point, plot_tbl)
 
 
 ```{r, echo=FALSE}
-knitr::knit_exit()
+#knitr::knit_exit()
 ```
 
 
@@ -784,6 +788,11 @@ knitr::knit_exit()
 Having looked at the pairs plots we also look at multivariate plots of all the data. We do this using techniques known as 'multidimensional scaling' or MDS.
 
 Many of these techniques do not scale well beyond a few thousand data points, so we repeat our sampling trick as before and create multiple plots from these samples.
+
+```{r redefine_numeric_vars, echo=TRUE}
+numeric_vars <- create_coltype_list(explore_data_tbl)$numeric
+```
+
 
 ## Multidimensional Scaling
 
