@@ -818,7 +818,7 @@ rm(plot_var, plot_tbl)
 
 
 ```{r, echo=FALSE}
-knitr::knit_exit()
+#knitr::knit_exit()
 ```
 
 
@@ -836,6 +836,11 @@ samples.
 numeric_vars <- create_coltype_list(explore_data_tbl)$split$continuous[c(1:3,5:7)]
 
 numeric_vars %>% print
+```
+
+
+```{r redefine_numeric_vars, echo=TRUE}
+numeric_vars <- create_coltype_list(explore_data_tbl)$numeric
 ```
 
 
