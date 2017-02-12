@@ -404,7 +404,6 @@ cat(paste0(drop_vars, collapse = ', '))
 }
 ```
 
-
 ```{r, echo=FALSE}
 knitr::knit_exit()
 ```
@@ -438,7 +437,7 @@ for(plot_varname in logical_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    na_count <- data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
+    na_count <- explore_data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
 
     explore_plot <- ggplot(explore_data_tbl) +
         geom_bar(aes_(x = plot_varname)) +
@@ -468,11 +467,13 @@ for(plot_varname in numeric_vars) {
 
     plot_var <- explore_data_tbl %>% .[[plot_varname]]
     na_count <- plot_var %>% is.na %>% sum
+    
+    plot_var %>% summary %>% print
 
     explore_plot <- ggplot(explore_data_tbl) +
-        geom_histogram(aes_(x = plot_varname), bins = dataexp_hist_bins_count) +
-        geom_vline(xintercept = mean(plot_var), colour = 'red') +
-        geom_vline(xintercept = median(plot_var), colour = 'green') +
+        geom_histogram(aes_string(x = plot_varname), bins = dataexp_hist_bins_count) +
+        geom_vline(xintercept = mean  (plot_var, na.rm = TRUE), colour = 'red',   size = 1.5) +
+        geom_vline(xintercept = median(plot_var, na.rm = TRUE), colour = 'green', size = 1.5) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_x_continuous(labels = comma) +
@@ -511,7 +512,7 @@ for(plot_varname in categorical_vars) {
         ylab("Count") +
         scale_y_continuous(labels = comma) +
         ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
-                       ,' (', na_count, ' missing values)')) +
+                      ,' (', na_count, ' missing values)')) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
     plot(explore_plot)
@@ -531,15 +532,15 @@ for(plot_varname in datetime_vars) {
     cat("--\n")
     cat(paste0(plot_varname, '\n'))
 
-    plot_var <- data_tbl %>% .[[plot_varname]]
+    na_count <- explore_data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
 
-    explore_plot <- ggplot() +
-        geom_bar(aes(x = plot_var)) +
+    explore_plot <- ggplot(explore_data_tbl) +
+        geom_bar(aes_string(x = plot_varname)) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
         ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname
-                       ,' (', na_count, ' missing values)'))
+                      ,' (', na_count, ' missing values)'))
 
     plot(explore_plot)
 }
