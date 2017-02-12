@@ -223,6 +223,12 @@ glimpse(data_tbl)
 ```
 
 
+
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
+
+
 ## Check Missing Values
 
 Before we do anything with the data, we first check for missing values
@@ -399,6 +405,11 @@ cat(paste0(drop_vars, collapse = ', '))
 ```
 
 
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
+
+
 
 # Univariate Data Exploration
 
@@ -430,7 +441,7 @@ for(plot_varname in logical_vars) {
     na_count <- data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
 
     explore_plot <- ggplot(explore_data_tbl) +
-        geom_bar(aes_string(x = plot_varname)) +
+        geom_bar(aes_(x = plot_varname)) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
@@ -459,7 +470,7 @@ for(plot_varname in numeric_vars) {
     na_count <- plot_var %>% is.na %>% sum
 
     explore_plot <- ggplot(explore_data_tbl) +
-        geom_histogram(aes_string(x = plot_varname), bins = dataexp_hist_bins_count) +
+        geom_histogram(aes_(x = plot_varname), bins = dataexp_hist_bins_count) +
         geom_vline(xintercept = mean(plot_var), colour = 'red') +
         geom_vline(xintercept = median(plot_var), colour = 'green') +
         xlab(plot_varname) +
