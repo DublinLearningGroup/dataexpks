@@ -47,24 +47,24 @@ set.seed(42)
 
 ### clean_names() sanitises the column names of the data
 clean_names <- function(colnames) {
-    colnames <- gsub(" ",        "_", colnames)
-    colnames <- gsub("/",        "_", colnames)
-    colnames <- gsub("\\.",      "_", colnames)
-    colnames <- gsub("\\-",      "_", colnames)
-    colnames <- gsub("'",         "", colnames)
-    colnames <- gsub("`",         "", colnames)
-    colnames <- gsub("\\(",       "", colnames)
-    colnames <- gsub("\\)",       "", colnames)
-    colnames <- gsub("\\?",       "", colnames)
-    colnames <- gsub("\\%",       "", colnames)
-    colnames <- gsub("\u2019",    "", colnames)
-    colnames <- gsub("\u20AC", "EUR", colnames)
-
-    colnames <- colnames %>%
+    colnames <- gsub(" ",        "_", colnames) %>%
+        gsub("/",                       "_", .) %>%
+        gsub("\\.",                     "_", .) %>%
+        gsub("\\-",                     "_", .) %>%
+        gsub("'",                        "", .) %>%
+        gsub("`",                        "", .) %>%
+        gsub("\"",                       "", .) %>%
+        gsub("\\(",                      "", .) %>%
+        gsub("\\)",                      "", .) %>%
+        gsub("\\?",                      "", .) %>%
+        gsub("\\%",                      "", .) %>%
+        gsub("\u2019",                   "", .) %>%
+        gsub("\u20AC",                "EUR", .) %>%
         gsub('(.)([A-Z][a-z]+)',  '\\1_\\2', .) %>%
         gsub('([a-z0-9])([A-Z])', '\\1_\\2', .) %>%
+        gsub('__+',                     '_', .) %>%
         tolower
-
+    
     return(colnames)
 }
 
