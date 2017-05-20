@@ -47,24 +47,23 @@ set.seed(42)
 
 ### clean_names() sanitises the column names of the data
 clean_names <- function(colnames) {
-    colnames <- gsub(" ",        "_", colnames) %>%
-        gsub("/",                       "_", .) %>%
-        gsub("\\.",                     "_", .) %>%
-        gsub("\\-",                     "_", .) %>%
-        gsub("'",                        "", .) %>%
-        gsub("`",                        "", .) %>%
-        gsub("\"",                       "", .) %>%
-        gsub("\\(",                      "", .) %>%
-        gsub("\\)",                      "", .) %>%
-        gsub("\\?",                      "", .) %>%
-        gsub("\\%",                      "", .) %>%
-        gsub("\u2019",                   "", .) %>%
-        gsub("\u20AC",                "EUR", .) %>%
+    colnames <- gsub(" ",          "_", colnames) %>%
+        gsub("/",                  "_",      .) %>%
+        gsub("\\.",                "_",      .) %>%
+        gsub("\\-",                "_",      .) %>%
+        gsub("'",                  "",       .) %>%
+        gsub("`",                  "",       .) %>%
+        gsub("\\(",                "",       .) %>%
+        gsub("\\)",                "",       .) %>%
+        gsub("\\?",                "",       .) %>%
+        gsub("\\%",                "",       .) %>%
+        gsub("\u2019",             "",       .) %>%
+        gsub("\u20AC",            'EUR',     .) %>%
         gsub('(.)([A-Z][a-z]+)',  '\\1_\\2', .) %>%
         gsub('([a-z0-9])([A-Z])', '\\1_\\2', .) %>%
-        gsub('__+',                     '_', .) %>%
-        tolower
-    
+        tolower %>%
+        gsub('__+',               '_',       .)
+
     return(colnames)
 }
 
@@ -240,7 +239,8 @@ character rather than as a blank, so we first correct for this.
 ### ADD CODE TO CORRECT FOR DATA ENCODING HERE
 ```
 
-With missing data properly encoded, we now visualise the missing data in a number of different ways.
+With missing data properly encoded, we now visualise the missing data in a
+number of different ways.
 
 ### Univariate Missing Data
 
@@ -309,7 +309,10 @@ ggplot(missing_univariate_top_tbl) +
 
 ### Multivariate Missing Data
 
-It is useful to get an idea of what combinations of variables tend to have variables with missing values simultaneously, so to construct a visualisation for this we create a count of all the times given combinations of variables have missing values, producing a heat map for these combination counts.
+It is useful to get an idea of what combinations of variables tend to have
+variables with missing values simultaneously, so to construct a visualisation
+for this we create a count of all the times given combinations of variables
+have missing values, producing a heat map for these combination counts.
 
 ```{r missing_data_matrix, echo=TRUE}
 missing_plot_tbl <- rawdata_tbl %>%
@@ -337,7 +340,11 @@ ggplot(missing_plot_tbl) +
 
 This visualisation takes a little explaining.
 
-Each row represents a combination of variables with simultaneous missing values. For each row in the graphic, the coloured entries show which particular variables are missing in that combination. The proportion of rows with that combination is displayed in both the label for the row and the colouring for the cells in the row.
+Each row represents a combination of variables with simultaneous missing
+values. For each row in the graphic, the coloured entries show which particular
+variables are missing in that combination. The proportion of rows with that
+combination is displayed in both the label for the row and the colouring for
+the cells in the row.
 
 ## Inspect High-level-count Categorical Variables
 
@@ -371,7 +378,7 @@ unique_vars <- catvar_valuecount_tbl %>%
 
 print(unique_vars)
 
-data_tbl <- data_tbl %>%
+explore_data_tbl <- data_tbl %>%
     select(-one_of(unique_vars))
 ```
 
@@ -397,7 +404,7 @@ also choose to remove some extra columns from the dataset.
 drop_vars <- c(highcount_vars)
 
 if(length(drop_vars) > 0) {
-    explore_data_tbl <- data_tbl %>%
+    explore_data_tbl <- explore_data_tbl %>%
         select(-one_of(drop_vars))
 
     cat(paste0(drop_vars, collapse = ', '))
@@ -569,9 +576,9 @@ Unfortunately, they do not scale well. Too many rows (say more than 5,000) can
 slow down the rendering, and more than 10 columns can make the plots
 uninterpretable as each cell is too small.
 
-The technique is useful, so to circumvent these issues we sample the dataset. We
-select random columns and rows, and make a pairs plot of the subset, repeating
-this process for a number of iterations.
+The technique is useful, so to circumvent these issues we sample the dataset.
+We select random columns and rows, and make a pairs plot of the subset,
+repeating this process for a number of iterations.
 
 ```{r plot_pairsplot, echo=TRUE, warning=FALSE, message=FALSE, fig.width = 20, fig.height=15}
 dataexp_pairsplot_itercount <-    10
@@ -623,7 +630,8 @@ rm(conv_tbl, pairs_tbl)
 
 ## Facet Plots on Variables
 
-We want to look at how the variables split on the logical variables as this is a very natural way to observe the data.
+We want to look at how the variables split on the logical variables as this is
+a very natural way to observe the data.
 
 ```{r bivariate_facet_data, echo=TRUE}
 ### _TEMPLATE_
@@ -638,7 +646,8 @@ facet_formula   <- formula(paste0("~ as.factor(", facet_varname, ")"))
 
 ### Logical Variables
 
-For logical variables we facet on barplots of the levels, comparing TRUE, FALSE and missing data.
+For logical variables we facet on barplots of the levels, comparing TRUE,
+FALSE and missing data.
 
 ```{r create_bivariate_logical_plots, echo=TRUE}
 logical_vars <- logical_vars[!logical_vars %in% facet_varname]
@@ -706,7 +715,8 @@ for(plot_varname in numeric_vars) {
 
 ### Categorical Variables
 
-We treat categorical variables like logical variables, faceting the barplots of the different levels of the data.
+We treat categorical variables like logical variables, faceting the barplots
+of the different levels of the data.
 
 ```{r create_bivariate_categorical_plots, echo=TRUE}
 categorical_vars <- categorical_vars[!categorical_vars %in% facet_varname]
@@ -785,9 +795,13 @@ rm(plot_var, outlier_point, plot_tbl)
 
 # Multivariate Visualisation
 
-Having looked at the pairs plots we also look at multivariate plots of all the data. We do this using techniques known as 'multidimensional scaling' or MDS.
+Having looked at the pairs plots we also look at multivariate plots of all
+the data. We do this using techniques known as 'multidimensional scaling' or
+MDS.
 
-Many of these techniques do not scale well beyond a few thousand data points, so we repeat our sampling trick as before and create multiple plots from these samples.
+Many of these techniques do not scale well beyond a few thousand data points,
+so we repeat our sampling trick as before and create multiple plots from these
+samples.
 
 ```{r redefine_numeric_vars, echo=TRUE}
 numeric_vars <- create_coltype_list(explore_data_tbl)$numeric
@@ -796,7 +810,8 @@ numeric_vars <- create_coltype_list(explore_data_tbl)$numeric
 
 ## Multidimensional Scaling
 
-We start with classic multidimensional scaling, also called 'principal coordinates analysis', which is done in R via the function `cmdscale`.
+We start with classic multidimensional scaling, also called 'principal
+coordinates analysis', which is done in R via the function `cmdscale`.
 
 ```{r create_mds_plots, echo=TRUE}
 mds_iter_count   <-    4
@@ -860,11 +875,19 @@ if((data_tbl %>% filter(row_ids) %>% nrow) > mds_sample_count) {
 
 ## t-SNE Plots
 
-One standard method for doing this is t-SNE, t-distributed Stochastic Neighbourhood Embedding. This algorithm is a type of dimensionality reduction - it constructs a lower-dimensional set of data from the original dataset by attempting the minimise the Kullback-Lieber divergence between the original and target datasets.
+One standard method for doing this is t-SNE, t-distributed Stochastic
+Neighbourhood Embedding. This algorithm is a type of dimensionality reduction
+- it constructs a lower-dimensional set of data from the original dataset by
+attempting the minimise the Kullback-Lieber divergence between the original
+and target datasets.
 
-t-SNE requires unique datapoints, so to ensure we do not pass repeated rows at any point, we may add a small amount of noise to the numeric columns to ensure uniqueness - t-SNE is a probabilistic process so this should not affect our output very much.
+t-SNE requires unique datapoints, so to ensure we do not pass repeated rows
+at any point, we may add a small amount of noise to the numeric columns to
+ensure uniqueness - t-SNE is a probabilistic process so this should not affect
+our output very much.
 
-As with previous methods, we take samples from larger datasets and plot outputs from multiple samples.
+As with previous methods, we take samples from larger datasets and plot outputs
+from multiple samples.
 
 ```{r create_tsne_plots, echo=TRUE}
 tsne_iter_count   <-     4
@@ -931,9 +954,12 @@ knitr::knit_exit()
 
 # Outlier Identification
 
-Another important part of data exploration is the identification of possible outliers, and we approach this in multiple ways.
+Another important part of data exploration is the identification of possible
+outliers, and we approach this in multiple ways.
 
-In keeping with the methodical approach we start with a univariate perspective, looking at each numerical variable by itself and plotting the values in the variable both with and without the outliers.
+In keeping with the methodical approach we start with a univariate
+perspective, looking at each numerical variable by itself and plotting the
+values in the variable both with and without the outliers.
 
 ## Univariate Outlier Plots
 
@@ -970,7 +996,8 @@ for(plot_varname in numeric_vars) {
 }
 ```
 
-We use the above plots to decide if we need to remove certain extreme values from the dataset.
+We use the above plots to decide if we need to remove certain extreme values
+from the dataset.
 
 ```{r remove_univariate_outlier, echo=TRUE}
 # We place basic logic for identifying univariate outliers here
@@ -979,19 +1006,37 @@ We use the above plots to decide if we need to remove certain extreme values fro
 
 ## Multivariate Outliers
 
-Sometimes outliers are so not because of individual values, but because the particular combination of values is unusual and so may have undue influence on the analysis.
+Sometimes outliers are so not because of individual values, but because the
+particular combination of values is unusual and so may have undue influence
+on the analysis.
 
-Our univariate approach will not discover these outliers, we need to consider multiple dimensions at once. In analogy to the univariate analysis, there are multiple possible approaches we might take, but we start with a standard and common approach: we calculate the Mahalanobis distance for each data point and then look to label any data points with very high distances as being 'outliers'.
+Our univariate approach will not discover these outliers, we need to consider
+multiple dimensions at once. In analogy to the univariate analysis, there are
+multiple possible approaches we might take, but we start with a standard and
+common approach: we calculate the Mahalanobis distance for each data point
+and then look to label any data points with very high distances as being
+'outliers'.
 
-The Mahalanobis distance, $D_M$, can be thought of as the multivariate equivalent of 'number of standard deviations away from the mean'. If we consider the data to be a set of multivariate values with mean vector $\mathbf{\mu}$ and covariance $\Sigma$, the Mahalanobis distance for any individual datapoint $\mathbf{x}$ is calculated as follows:
+The Mahalanobis distance, $D_M$, can be thought of as the multivariate
+equivalent of 'number of standard deviations away from the mean'. If we
+consider the data to be a set of multivariate values with mean vector
+$\mathbf{\mu}$ and covariance $\Sigma$, the Mahalanobis distance for any
+individual datapoint $\mathbf{x}$ is calculated as follows:
 
 $$
 D_M(\mathbf{x}) = \sqrt{(\mathbf{x} - \mathbf{\mu})^T \, \Sigma^{-1} \, (\mathbf{x} - \mathbf{\mu})}
 $$
 
-We think of the Mahalanobis distance as being an extension of the standard Euclidean distance where the correlation amongst variables is accounted for. Thus, data points that differ mainly along higher-correlated axes are considered 'closer' than datapoints different along less-correlated axes.
+We think of the Mahalanobis distance as being an extension of the standard
+Euclidean distance where the correlation amongst variables is accounted for.
+Thus, data points that differ mainly along higher-correlated axes are
+considered 'closer' than datapoints different along less-correlated axes.
 
-To perform this calculation we need estimates for $\mu$ and $\Sigma$. As we are assuming the presence of outliers, we use robust methods to obtain our estimates of the mean and the covariance. The `cov.rob()` function from the `MASS` package is used. For simplicity, we start with just the numerical variables, extending this approach after.
+To perform this calculation we need estimates for $\mu$ and $\Sigma$. As we
+are assuming the presence of outliers, we use robust methods to obtain our
+estimates of the mean and the covariance. The `cov.rob()` function from the
+`MASS` package is used. For simplicity, we start with just the numerical
+variables, extending this approach after.
 
 ```{r use_numeric_variables, echo=TRUE}
 num_data_tbl <- data_tbl %>%
@@ -1000,7 +1045,8 @@ num_data_tbl <- data_tbl %>%
 complete_flag <- num_data_tbl %>% complete.cases
 ```
 
-Now that we have a dataset of numeric variables with no missing data we calculate robust estimates for the mean and covariance of the data.
+Now that we have a dataset of numeric variables with no missing data we
+calculate robust estimates for the mean and covariance of the data.
 
 ```{r estimate_data_mean_covariance, echo=TRUE}
 mcd_estimate <- num_data_tbl %>%
@@ -1008,7 +1054,8 @@ mcd_estimate <- num_data_tbl %>%
     robustbase::covMcd()
 ```
 
-With robust estimates for both the mean and covariance, we now calculate the Mahalanobis distance for each of the datapoints.
+With robust estimates for both the mean and covariance, we now calculate the
+Mahalanobis distance for each of the datapoints.
 
 ```{r numeric_vars_mahalanobis_dist, echo=TRUE}
 m_dist <- rep(NA, row_count)
@@ -1021,7 +1068,9 @@ data_tbl <- data_tbl %>%
     mutate(m_dist = m_dist)
 ```
 
-We have calculated the Mahalanobis distance and appended it to the data, so we look at a cumulative plot of these distances to see if any are so far removed from the data we may consider labelling them as outliers.
+We have calculated the Mahalanobis distance and appended it to the data, so
+we look at a cumulative plot of these distances to see if any are so far
+removed from the data we may consider labelling them as outliers.
 
 ```{r identify_mahalanobis_outliers, echo=TRUE}
 cutoff_percentile <- 0.99
@@ -1041,7 +1090,8 @@ data_tbl <- data_tbl %>%
     mutate(mcd_outlier = m_dist >= cutoff_distance)
 ```
 
-Having labelled data points as outliers, we now redo this percentile plot to see how it looks
+Having labelled data points as outliers, we now redo this percentile plot to
+see how it looks
 
 ```{r outlier_removed_mahalanobis_percentile_plot, echo=TRUE}
 ggplot(data_tbl %>% filter(mcd_outlier == FALSE)) +
