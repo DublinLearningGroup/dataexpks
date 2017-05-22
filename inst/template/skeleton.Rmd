@@ -94,12 +94,12 @@ create_coltype_list <- function(data_tbl) {
     cat_types <- coltypes %>%
         unique %>%
         sort
-    
+
     split_lst <- cat_types %>%
         map(function(x) { coltypes[coltypes %in% x] %>% names })
 
     names(split_lst) <- coltypes %>% unique %>% sort
-    
+
     coltype_lst <- list(
         split   = split_lst
        ,columns = coltypes
@@ -159,19 +159,19 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
 ### on the whole dataset
 create_sampled_output <- function(fulldata_tbl, summ_func, row_count = 2000, iter_count = 5) {
     output_lst <- list()
-    
+
     if((fulldata_tbl %>% nrow) > row_count) {
         for(i in 1:iter_count) {
             sample_tbl <- fulldata_tbl %>%
                 sample_n(row_count)
 
-            output_lst[[i]] <- summ_func(sample_tbl)                        
+            output_lst[[i]] <- summ_func(sample_tbl)
         }
     } else {
         output_lst[[1]] <- summ_func(fulldata_tbl)
     }
 
-    return(output_lst)    
+    return(output_lst)
 }
 
 
@@ -503,7 +503,7 @@ for(plot_varname in numeric_vars) {
 
     plot_var <- explore_data_tbl %>% .[[plot_varname]]
     na_count <- plot_var %>% is.na %>% sum
-    
+
     plot_var %>% summary %>% print
 
     explore_plot <- ggplot(explore_data_tbl) +
@@ -570,7 +570,7 @@ for(plot_varname in datetime_vars) {
 
     plot_var <- explore_data_tbl %>% .[[plot_varname]]
     na_count <- plot_var %>% is.na %>% sum
-    
+
     plot_var %>% summary %>% print
 
     explore_plot <- ggplot(explore_data_tbl) +
@@ -832,12 +832,6 @@ Many of these techniques do not scale well beyond a few thousand data points,
 so we repeat our sampling trick as before and create multiple plots from these
 samples.
 
-```{r redefine_numeric_vars, echo=TRUE}
-numeric_vars <- create_coltype_list(explore_data_tbl)$split$continuous[c(1:3,5:7)]
-
-numeric_vars %>% print
-```
-
 
 ```{r redefine_numeric_vars, echo=TRUE}
 numeric_vars <- create_coltype_list(explore_data_tbl)$numeric
@@ -869,18 +863,18 @@ input_tbl <- data_tbl %>%
 
 construct_mds_plot <- function(mds_tbl) {
     num_mds_dist <- mds_tbl %>% select(one_of(numeric_vars)) %>% dist
-    
+
     num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
-    
+
     mds_tbl <- mds_tbl %>%
         mutate(mds_d1 = num_mds$points[,1]
               ,mds_d2 = num_mds$points[,2])
-    
+
     mds_plot <- ggplot(mds_tbl) +
         geom_point(aes_string(x = 'mds_d1', y = 'mds_d2', colour = colour_var)) +
         xlab("MDS Dim 1") +
         ylab("MDS Dim 2")
-    
+
     return(mds_plot)
 }
 
@@ -948,7 +942,7 @@ construct_tsne_plot <- function(tsne_tbl) {
                   ,size = 0.5) +
         xlab("t-SNE Dim 1") +
         ylab("t-SNE Dim 2")
-    
+
     return(tsne_plot)
 }
 
