@@ -818,7 +818,7 @@ rm(plot_var, plot_tbl)
 
 
 ```{r, echo=FALSE}
-#knitr::knit_exit()
+knitr::knit_exit()
 ```
 
 
