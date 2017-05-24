@@ -257,6 +257,23 @@ knitr::knit_exit()
 ```
 
 
+## Create Derived Variables
+
+We now create derived features useful for modelling. These values are
+new variables calculated from existing variables in the data.
+
+```{r create_derived_variables, echo=TRUE}
+# data_tbl <- data_tbl %>%
+#     mutate()
+```
+
+
+
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
+
+
 ## Check Missing Values
 
 Before we do anything with the data, we first check for missing values
