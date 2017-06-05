@@ -852,7 +852,7 @@ samples.
 
 
 ```{r redefine_numeric_vars, echo=TRUE}
-numeric_vars <- create_coltype_list(explore_data_tbl)$continuous
+numeric_vars <- create_coltype_list(explore_data_tbl)$split$continuous
 ```
 
 
