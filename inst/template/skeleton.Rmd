@@ -11,23 +11,8 @@ output:
   pdf_document: default
 ---
 
-<!--
-(Title:
-Author: __AUTHOR_NAME__
-Date: `r Sys.Date()`
-Abstract: The abstract for this article goes here
-Keywords:
--->
-
-
 ```{r knit_opts, include=FALSE}
 rm(list = ls())
-
-knitr::opts_chunk$set(tidy       = FALSE
-                     ,cache      = FALSE
-                     ,fig.height =     8
-                     ,fig.width  =    11
-                     )
 
 library(tidyverse)
 library(forcats)
@@ -40,6 +25,17 @@ library(Rtsne)
 
 options(width = 90L
        ,warn  = 1)
+<<<<<<< HEAD
+=======
+
+knitr::opts_chunk$set(tidy       = FALSE
+                     ,cache      = FALSE
+                     ,warning    = FALSE
+                     ,message    = FALSE
+                     ,fig.height =     8
+                     ,fig.width  =    11
+                     )
+>>>>>>> mcooney
 
 set.seed(42)
 
@@ -199,6 +195,11 @@ jitter_numeric_variables <- function(data_tbl) {
 }
 ```
 
+This workbook was created using the 'dataexpks' template:
+
+https://github.com/DublinLearningGroup/dataexpks
+
+
 
 # Introduction
 
@@ -297,7 +298,7 @@ We first examine a simple univariate count of all the missing data:
 row_count <- data_tbl %>% nrow
 
 missing_univariate_tbl <- data_tbl %>%
-    summarise_each(funs(sum(is.na(.)))) %>%
+    summarise_all(funs(sum(is.na(.)))) %>%
     gather('variable','missing_count') %>%
     mutate(missing_prop = missing_count / row_count)
 
@@ -324,7 +325,7 @@ With these columns removed, we repeat the exercise.
 
 ```{r missing_data_univariate_count_redux, echo=TRUE}
 missing_univariate_tbl <- lessmiss_data_tbl %>%
-    summarise_each(funs(sum(is.na(.)))) %>%
+    summarise_all(funs(sum(is.na(.)))) %>%
     gather('variable','missing_count') %>%
     mutate(missing_prop = missing_count / row_count)
 
@@ -494,7 +495,7 @@ for(plot_varname in logical_vars) {
     na_count <- explore_data_tbl %>% .[[plot_varname]] %>% is.na %>% sum
 
     explore_plot <- ggplot(explore_data_tbl) +
-        geom_bar(aes_(x = plot_varname)) +
+        geom_bar(aes_string(x = plot_varname)) +
         xlab(plot_varname) +
         ylab("Count") +
         scale_y_continuous(labels = comma) +
