@@ -473,6 +473,12 @@ knitr::knit_exit()
 ```
 
 
+## Write Loaded Data to Disk
+
+```{r write_loaded_data_disk, echo=TRUE}
+data_tbl %>% write_csv(path = 'data/loaded_data.csv')
+```
+
 
 # Univariate Data Exploration
 
