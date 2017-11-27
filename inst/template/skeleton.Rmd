@@ -25,8 +25,6 @@ library(Rtsne)
 
 options(width = 90L
        ,warn  = 1)
-<<<<<<< HEAD
-=======
 
 knitr::opts_chunk$set(tidy       = FALSE
                      ,cache      = FALSE
@@ -35,7 +33,6 @@ knitr::opts_chunk$set(tidy       = FALSE
                      ,fig.height =     8
                      ,fig.width  =    11
                      )
->>>>>>> mcooney
 
 set.seed(42)
 
