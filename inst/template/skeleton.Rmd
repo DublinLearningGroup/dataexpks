@@ -121,11 +121,11 @@ create_ggpairs_tbl <- function(data_tbl, sample_cols, sample_rows, verbose = FAL
         cat(paste0(names(data_tbl)[col_index], collapse = ','))
         cat("\n")
 
-        data_tbl %>% select(col_index) %>% glimpse
+        data_tbl %>% dplyr::select(col_index) %>% glimpse
     }
 
     sample_tbl <- data_tbl %>%
-        select(col_index) %>%
+        dplyr::select(col_index) %>%
         sample_n(row_count)
 
 
@@ -315,7 +315,7 @@ remove_vars <- missing_univariate_tbl %>%
     .[['variable']]
 
 lessmiss_data_tbl <- data_tbl %>%
-    select(-one_of(remove_vars))
+    dplyr::select(-one_of(remove_vars))
 ```
 
 With these columns removed, we repeat the exercise.
@@ -367,7 +367,7 @@ missing_plot_tbl <- rawdata_tbl %>%
     group_by(label) %>%
     summarise_all(funs(sum)) %>%
     arrange(desc(label)) %>%
-    select(-label) %>%
+    dplyr::select(-label) %>%
     mutate(rowid = do.call(pmax, (.))) %>%
     gather('col','count', -rowid) %>%
     mutate(Proportion = count / row_count
@@ -429,7 +429,7 @@ if(!is.null(coltype_lst$split$discrete)) {
     print(unique_vars)
     
     explore_data_tbl <- data_tbl %>%
-        select(-one_of(unique_vars))
+        dplyr::select(-one_of(unique_vars))
 } else {
     explore_data_tbl <- data_tbl
 }
@@ -462,7 +462,7 @@ drop_vars <- c(highcount_vars)
 
 if(length(drop_vars) > 0) {
     explore_data_tbl <- explore_data_tbl %>%
-        select(-one_of(drop_vars))
+        dplyr::select(-one_of(drop_vars))
 
     cat(paste0(drop_vars, collapse = ', '))
 }
@@ -876,7 +876,7 @@ mds_iter_count   <-    4
 mds_sample_count <- 2000
 
 row_ids <- data_tbl %>%
-    select(one_of(numeric_vars)) %>%
+    dplyr::select(one_of(numeric_vars)) %>%
     complete.cases
 
 
@@ -886,11 +886,11 @@ row_ids <- data_tbl %>%
 colour_var <- categorical_vars[1]
 
 input_tbl <- data_tbl %>%
-    select(one_of(c(numeric_vars, colour_var))) %>%
+    dplyr::select(one_of(c(numeric_vars, colour_var))) %>%
     filter(row_ids)
 
 construct_mds_plot <- function(mds_tbl) {
-    num_mds_dist <- mds_tbl %>% select(one_of(numeric_vars)) %>% dist
+    num_mds_dist <- mds_tbl %>% dplyr::select(one_of(numeric_vars)) %>% dist
 
     num_mds <- cmdscale(num_mds_dist, k = 2, eig = TRUE)
 
@@ -943,7 +943,7 @@ tsne_iter_count   <-     4
 tsne_sample_count <- 10000
 
 row_ids <- data_tbl %>%
-    select(one_of(numeric_vars)) %>%
+    dplyr::select(one_of(numeric_vars)) %>%
     complete.cases
 
 
@@ -954,13 +954,13 @@ colour_var <- categorical_vars[1]
 
 
 input_tbl <- data_tbl %>%
-    select(one_of(c(numeric_vars, colour_var))) %>%
+    dplyr::select(one_of(c(numeric_vars, colour_var))) %>%
     jitter_numeric_variables %>%
     filter(row_ids)
 
 
 construct_tsne_plot <- function(tsne_tbl) {
-    data_tsne <- Rtsne(tsne_tbl %>% select(one_of(numeric_vars)))
+    data_tsne <- Rtsne(tsne_tbl %>% dplyr::select(one_of(numeric_vars)))
 
     tsne_tbl$tsne_d1 <- data_tsne$Y[,1]
     tsne_tbl$tsne_d2 <- data_tsne$Y[,2]
@@ -1080,7 +1080,7 @@ variables, extending this approach after.
 
 ```{r use_numeric_variables, echo=TRUE}
 num_data_tbl <- data_tbl %>%
-    select(one_of(numeric_vars))
+    dplyr::select(one_of(numeric_vars))
 
 complete_flag <- num_data_tbl %>% complete.cases
 ```
