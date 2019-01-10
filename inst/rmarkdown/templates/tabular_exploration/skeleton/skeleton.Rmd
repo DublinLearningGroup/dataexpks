@@ -471,7 +471,6 @@ for(plot_varname in categorical_vars) {
 
     plot_tbl <- explore_data_tbl %>%
         pull(!! plot_varname) %>%
-        as_character() %>%
         fct_lump(n = dataexp_cat_level_count) %>%
         fct_count()
 
