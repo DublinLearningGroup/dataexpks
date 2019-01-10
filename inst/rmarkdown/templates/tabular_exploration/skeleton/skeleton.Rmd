@@ -538,7 +538,7 @@ visualisations facetted by a categorical value.
 ```{r bivariate_facet_data, echo=TRUE}
 ### _TEMPLATE_
 ### facet_varname <- ''
-facet_varname   <- coltype_lst$split$discrete[1]
+facet_varname <- coltype_lst$split$discrete[1]
 
 
 dataexp_facet_count_max <- 3
