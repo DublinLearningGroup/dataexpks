@@ -43,8 +43,6 @@ import::from(cowplot    ,theme_cowplot, plot_grid)
 import::from(forcats    ,fct_reorder, fct_lump, fct_count)
 import::from(purrr      ,map, map_int, map_dbl, map_chr, pmap_chr, pmap_int)
 import::from(snakecase  ,to_snake_case)
-import::from(feather    ,read_feather, write_feather)
-
 ```
 
 
