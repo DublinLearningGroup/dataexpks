@@ -23,7 +23,7 @@ import::from(rlang      ,are_na, as_integer, as_character, sym)
 import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
 import::from(magrittr   ,"%>%", set_colnames)
 import::from(readr      ,read_csv, write_csv, cols, col_character, col_date
-                        ,col_number)
+                        ,col_number, col_double, col_integer)
 import::from(dplyr      ,mutate, mutate_all, mutate_if, filter, select
                         ,group_by, left_join, inner_join
                         ,summarise, summarise_at, summarise_all, vars, funs
@@ -206,7 +206,7 @@ We first examine a simple univariate count of all the missing data:
 row_count <- data_tbl %>% nrow
 
 missing_univariate_tbl <- data_tbl %>%
-    summarise_all(funs(sum(are_na(.)))) %>%
+    summarise_all(list(~sum(are_na(.)))) %>%
     gather('variable','missing_count') %>%
     mutate(missing_prop = missing_count / row_count)
 
@@ -232,7 +232,7 @@ With these columns removed, we repeat the exercise.
 
 ```{r missing_data_univariate_count_redux, echo=TRUE}
 missing_univariate_tbl <- lessmiss_data_tbl %>%
-    summarise_all(funs(sum(are_na(.)))) %>%
+    summarise_all(list(~sum(are_na(.)))) %>%
     gather('variable','missing_count') %>%
     mutate(missing_prop = missing_count / row_count)
 
