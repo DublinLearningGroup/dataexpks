@@ -162,7 +162,7 @@ glimpse(data_tbl)
 
 
 ```{r, echo=FALSE}
-#knitr::knit_exit()
+knitr::knit_exit()
 ```
 
 
@@ -180,7 +180,7 @@ glimpse(data_tbl)
 
 
 ```{r, echo=FALSE}
-#knitr::knit_exit()
+knitr::knit_exit()
 ```
 
 
@@ -375,7 +375,7 @@ data_tbl %>% write_csv(path = 'DATAEXPKS.csv')
 
 
 ```{r, echo=FALSE}
-#knitr::knit_exit()
+knitr::knit_exit()
 ```
 
 
@@ -519,7 +519,7 @@ for(plot_varname in datetime_vars) {
 
 
 ```{r, echo=FALSE}
-#knitr::knit_exit()
+knitr::knit_exit()
 ```
 
 
