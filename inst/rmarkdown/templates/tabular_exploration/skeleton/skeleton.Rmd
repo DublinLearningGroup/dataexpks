@@ -17,37 +17,20 @@ output:
 
 
 ```{r import_libraries, echo=FALSE}
-rm(list = ls())
-
-import::from(rlang      ,are_na, as_integer, as_character, sym)
-import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
-import::from(magrittr   ,"%>%", set_colnames)
-import::from(readr      ,read_csv, write_csv, cols, col_character, col_date
-                        ,col_number, col_double, col_integer)
-import::from(dplyr      ,mutate, mutate_all, mutate_if, filter, select
-                        ,group_by, left_join, inner_join
-                        ,summarise, summarise_at, summarise_all, vars, funs
-                        ,distinct, sample_n, top_n, pull, if_else, count
-                        ,one_of, arrange)
-import::from(tidyr      ,gather, spread, nest, unnest)
-import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
-                        ,geom_histogram, geom_boxplot, geom_bar, geom_col
-                        ,geom_tile, geom_vline, geom_line, geom_smooth
-                        ,geom_point
-                        ,scale_x_continuous, scale_y_continuous
-                        ,scale_x_discrete, scale_fill_continuous
-                        ,expand_limits, theme, element_text, facet_grid
-                        ,facet_wrap, theme_set, theme)
-import::from(scales     ,comma)
-import::from(cowplot    ,theme_cowplot, plot_grid)
-import::from(forcats    ,fct_reorder, fct_lump, fct_count)
-import::from(purrr      ,map, map_int, map_dbl, map_chr, pmap_chr, pmap_int)
-import::from(snakecase  ,to_snake_case)
-```
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(purrr)
+library(forcats)
+library(snakecase)
 
 
+conflict_prefer('filter', 'dplyr')
+conflict_prefer('select', 'dplyr')
+conflict_prefer('lag',    'dplyr')
 
-```{r knit_opts, include=FALSE}
+
 options(width = 80L
        ,warn  = 1)
 
@@ -70,32 +53,32 @@ is_date <- function(.x) inherits(.x, c("POSIXt", "POSIXct", "POSIXlt", "Date", "
 
 ### Returns the category of data type passed to it
 categorise_datatype <- function (x) {
-    if(all(are_na(x))) return("na")
+  if(all(are_na(x))) return("na")
 
-    if(is_date(x))                          "datetime"
-    else if (!is.null(attributes(x)) ||
-             all(is.character(x)))          "discrete"
-    else if (all(is.logical(x)))            "logical"
-    else                                    "continuous"
+  if(is_date(x))                          "datetime"
+  else if (!is.null(attributes(x)) ||
+           all(is.character(x)))          "discrete"
+  else if (all(is.logical(x)))            "logical"
+  else                                    "continuous"
 }
 
 
 ### create_coltype_list() splits columns into various types
 create_coltype_list <- function(data_tbl) {
-    coltypes  <- data_tbl %>% map_chr(categorise_datatype)
-    cat_types <- coltypes %>% unique %>% sort
+  coltypes  <- data_tbl %>% map_chr(categorise_datatype)
+  cat_types <- coltypes %>% unique() %>% sort()
 
-    split_lst <- cat_types %>%
-        map(function(x) { coltypes[coltypes %in% x] %>% names })
+  split_lst <- cat_types %>%
+    map(function(x) { coltypes[coltypes %in% x] %>% names })
 
-    names(split_lst) <- coltypes %>% unique %>% sort
+  names(split_lst) <- coltypes %>% unique() %>% sort()
 
-    coltype_lst <- list(
-        split   = split_lst
-       ,columns = coltypes
-    )
+  coltype_lst <- list(
+    split   = split_lst
+   ,columns = coltypes
+  )
 
-    return(coltype_lst)
+  return(coltype_lst)
 }
 
 ```
@@ -155,7 +138,6 @@ cleaned_names <- rawdata_tbl %>% names() %>% to_snake_case()
 
 data_tbl <- rawdata_tbl %>% set_colnames(cleaned_names)
 
-
 glimpse(data_tbl)
 ```
 
@@ -203,44 +185,44 @@ number of different ways.
 We first examine a simple univariate count of all the missing data:
 
 ```{r missing_data_univariate_count, echo=TRUE}
-row_count <- data_tbl %>% nrow
+row_count <- data_tbl %>% nrow()
 
 missing_univariate_tbl <- data_tbl %>%
-    summarise_all(list(~sum(are_na(.)))) %>%
-    gather('variable','missing_count') %>%
-    mutate(missing_prop = missing_count / row_count)
+  summarise_all(list(~sum(are_na(.)))) %>%
+  gather('variable','missing_count') %>%
+  mutate(missing_prop = missing_count / row_count)
 
 ggplot(missing_univariate_tbl) +
-    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
-    xlab("Variable") +
-    ylab("Missing Value Proportion") +
-    theme(axis.text.x = element_text(angle = 90))
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 We remove all variables where all of the entries are missing
 
 ```{r remove_entirely_missing_vars, echo=TRUE}
 remove_vars <- missing_univariate_tbl %>%
-    filter(missing_count == row_count) %>%
-    pull(variable)
+  filter(missing_count == row_count) %>%
+  pull(variable)
 
 lessmiss_data_tbl <- data_tbl %>%
-    select(-one_of(remove_vars))
+  select(-one_of(remove_vars))
 ```
 
 With these columns removed, we repeat the exercise.
 
 ```{r missing_data_univariate_count_redux, echo=TRUE}
 missing_univariate_tbl <- lessmiss_data_tbl %>%
-    summarise_all(list(~sum(are_na(.)))) %>%
-    gather('variable','missing_count') %>%
-    mutate(missing_prop = missing_count / row_count)
+  summarise_all(list(~sum(are_na(.)))) %>%
+  gather('variable','missing_count') %>%
+  mutate(missing_prop = missing_count / row_count)
 
 ggplot(missing_univariate_tbl) +
-    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
-    xlab("Variable") +
-    ylab("Missing Value Proportion") +
-    theme(axis.text.x = element_text(angle = 90))
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 
@@ -248,14 +230,14 @@ To reduce the scale of this plot, we look at the top twenty missing data counts.
 
 ```{r missing_data_univariate_top10_count, echo=TRUE}
 missing_univariate_top_tbl <- missing_univariate_tbl %>%
-    arrange(desc(missing_count)) %>%
-    top_n(n = 50, wt = missing_count)
+  arrange(desc(missing_count)) %>%
+  top_n(n = 50, wt = missing_count)
 
 ggplot(missing_univariate_top_tbl) +
-    geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
-    xlab("Variable") +
-    ylab("Missing Value Proportion") +
-    theme(axis.text.x = element_text(angle = 90))
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop), weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 
@@ -271,25 +253,25 @@ have missing values, producing a heat map for these combination counts.
 row_count <- rawdata_tbl %>% nrow()
 
 missing_plot_tbl <- rawdata_tbl %>%
-    mutate_all(function(x) x %>% are_na() %>% as_integer) %>%
-    mutate(label = pmap_chr(., paste0)) %>%
-    group_by(label) %>%
-    summarise_all(funs(sum)) %>%
-    arrange(desc(label)) %>%
-    select(-label) %>%
-    mutate(label_count = pmap_int(., pmax)) %>%
-    gather('col', 'count', -label_count) %>%
-    mutate(miss_prop   = count / row_count
-          ,group_label = sprintf('%6.4f', round(label_count / row_count, 4))
-          )
+  mutate_all(function(x) x %>% are_na() %>% as_integer()) %>%
+  mutate(label = pmap_chr(., paste0)) %>%
+  group_by(label) %>%
+  summarise_all(funs(sum)) %>%
+  arrange(desc(label)) %>%
+  select(-label) %>%
+  mutate(label_count = pmap_int(., pmax)) %>%
+  gather('col', 'count', -label_count) %>%
+  mutate(miss_prop   = count / row_count
+        ,group_label = sprintf('%6.4f', round(label_count / row_count, 4))
+        )
 
 ggplot(missing_plot_tbl) +
-    geom_tile(aes(x = col, y = group_label, fill = miss_prop), height = 0.8) +
-    scale_fill_continuous() +
-    scale_x_discrete(position = 'top') +
-    xlab("Variable") +
-    ylab("Missing Value Proportion") +
-    theme(axis.text.x = element_text(angle = 90))
+  geom_tile(aes(x = col, y = group_label, fill = miss_prop), height = 0.8) +
+  scale_fill_continuous() +
+  scale_x_discrete(position = 'top') +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 This visualisation takes a little explaining.
@@ -309,10 +291,10 @@ variables that are not amenable to basic exploration and plotting.
 coltype_lst <- create_coltype_list(data_tbl)
 
 catvar_valuecount_tbl <- data_tbl %>%
-    summarise_at(coltype_lst$split$discrete
-                ,function(x) length(unique(x))) %>%
-    gather('var_name', 'level_count') %>%
-    arrange(-level_count)
+  summarise_at(coltype_lst$split$discrete
+              ,function(x) x %>% unique() %>% length()) %>%
+  gather('var_name', 'level_count') %>%
+  arrange(-level_count)
 
 print(catvar_valuecount_tbl)
 
@@ -327,13 +309,13 @@ count will match the row count.
 
 ```{r remove_id_variables, echo=TRUE}
 unique_vars <- catvar_valuecount_tbl %>%
-    filter(level_count == row_count) %>%
-    pull(var_name)
+  filter(level_count == row_count) %>%
+  pull(var_name)
 
 print(unique_vars)
 
 explore_data_tbl <- data_tbl %>%
-    select(-one_of(unique_vars))
+  select(-one_of(unique_vars))
 ```
 
 Having removed the unique identifier variables from the dataset, we
@@ -342,9 +324,9 @@ we create a vector of those variable names.
 
 ```{r collect_highcount_variables, echo=TRUE}
 highcount_vars <- catvar_valuecount_tbl %>%
-    filter(level_count >= dataexp_level_exclusion_threshold
-          ,level_count < row_count) %>%
-    pull(var_name)
+  filter(level_count >= dataexp_level_exclusion_threshold
+        ,level_count < row_count) %>%
+  pull(var_name)
 
 cat(paste0(highcount_vars, collapse = ', '))
 ```
@@ -358,10 +340,10 @@ also choose to remove some extra columns from the dataset.
 drop_vars <- c(highcount_vars)
 
 if(length(drop_vars) > 0) {
-    explore_data_tbl <- explore_data_tbl %>%
-        select(-one_of(drop_vars))
+  explore_data_tbl <- explore_data_tbl %>%
+      select(-one_of(drop_vars))
 
-    cat(paste0(drop_vars, collapse = ', '))
+  cat(paste0(drop_vars, collapse = ', '))
 }
 ```
 
@@ -403,21 +385,21 @@ missing data as well though, so we also plot the count of those.
 logical_vars <- coltype_lst$split$logical
 
 for(plot_varname in logical_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
+  na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
 
-    explore_plot <- ggplot(explore_data_tbl) +
-        geom_bar(aes(x = !! sym(plot_varname))) +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
-                      ,' (', na_count, ' missing values)')) +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_bar(aes(x = !! sym(plot_varname))) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
+                  ,' (', na_count, ' missing values)')) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
@@ -431,27 +413,27 @@ integer data.
 numeric_vars <- coltype_lst$split$continuous
 
 for(plot_varname in numeric_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_var <- explore_data_tbl %>% pull(!! plot_varname)
-    na_count <- plot_var %>% are_na() %>% sum()
+  plot_var <- explore_data_tbl %>% pull(!! plot_varname)
+  na_count <- plot_var %>% are_na() %>% sum()
 
-    plot_var %>% summary %>% print
+  plot_var %>% summary %>% print
 
-    explore_plot <- ggplot(explore_data_tbl) +
-        geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
-        geom_vline(xintercept = mean  (plot_var, na.rm = TRUE), colour = 'red',   size = 1.5) +
-        geom_vline(xintercept = median(plot_var, na.rm = TRUE), colour = 'green', size = 1.5) +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_x_continuous(labels = comma) +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Histogram Plot for Variable: ', plot_varname
-                      ,' (', na_count, ' missing values)')
-               ,subtitle = '(red line is mean, green line is median)')
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
+    geom_vline(xintercept = mean  (plot_var, na.rm = TRUE), colour = 'red',   size = 1.5) +
+    geom_vline(xintercept = median(plot_var, na.rm = TRUE), colour = 'green', size = 1.5) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0('Histogram Plot for Variable: ', plot_varname
+                  ,' (', na_count, ' missing values)')
+           ,subtitle = '(red line is mean, green line is median)')
 
-    print(explore_plot)
+  print(explore_plot)
 }
 ```
 
@@ -464,26 +446,26 @@ number of possible values
 categorical_vars <- coltype_lst$split$discrete
 
 for(plot_varname in categorical_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
+  na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
 
-    plot_tbl <- explore_data_tbl %>%
-        pull(!! plot_varname) %>%
-        fct_lump(n = dataexp_cat_level_count) %>%
-        fct_count()
+  plot_tbl <- explore_data_tbl %>%
+    pull(!! plot_varname) %>%
+    fct_lump(n = dataexp_cat_level_count) %>%
+    fct_count()
 
-    explore_plot <- ggplot(plot_tbl) +
-        geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
-                      ,' (', na_count, ' missing values)')) +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
+                  ,' (', na_count, ' missing values)')) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
@@ -497,23 +479,23 @@ day, a date, or a timestamp.
 datetime_vars <- coltype_lst$split$datetime
 
 for(plot_varname in datetime_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_var <- explore_data_tbl %>% pull(!! plot_varname)
-    na_count <- plot_var %>% are_na() %>% sum()
+  plot_var <- explore_data_tbl %>% pull(!! plot_varname)
+  na_count <- plot_var %>% are_na() %>% sum()
 
-    plot_var %>% summary() %>% print()
+  plot_var %>% summary() %>% print()
 
-    explore_plot <- ggplot(explore_data_tbl) +
-        geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname
-                      ,' (', na_count, ' missing values)'))
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname
+                  ,' (', na_count, ' missing values)'))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
@@ -552,21 +534,21 @@ logical_vars <- logical_vars[!logical_vars %in% facet_varname]
 
 
 for(plot_varname in logical_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
 
-    explore_plot <- ggplot(plot_tbl) +
-        geom_bar(aes(x = !! sym(plot_varname))) +
-        facet_wrap(facet_varname, scales = 'free') +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0(facet_varname, '-Faceted Barplots for Variable: ', plot_varname)) +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = !! sym(plot_varname))) +
+    facet_wrap(facet_varname, scales = 'free') +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0(facet_varname, '-Faceted Barplots for Variable: ', plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
@@ -577,22 +559,22 @@ For numeric variables, we facet on histograms of the data.
 
 ```{r create_bivariate_numeric_plots, echo=TRUE}
 for(plot_varname in numeric_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
 
-    explore_plot <- ggplot(plot_tbl) +
-        geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
-        facet_wrap(facet_varname, scales = 'free') +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_x_continuous(labels = comma) +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname)) +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = 'free') +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-    print(explore_plot)
+  print(explore_plot)
 }
 ```
 
@@ -605,21 +587,21 @@ of the different levels of the data.
 categorical_vars <- categorical_vars[!categorical_vars %in% facet_varname]
 
 for(plot_varname in categorical_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
 
-    explore_plot <- ggplot(plot_tbl) +
-        geom_bar(aes(x = !! sym(plot_varname))) +
-        facet_wrap(facet_varname, scales = 'free') +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname)) +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = !! sym(plot_varname))) +
+    facet_wrap(facet_varname, scales = 'free') +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
@@ -630,20 +612,20 @@ Like the univariate plots, we facet on histograms of the years in the dates.
 
 ```{r create_bivariate_datetime_plots, echo=TRUE}
 for(plot_varname in datetime_vars) {
-    cat("--\n")
-    cat(paste0(plot_varname, '\n'))
+  cat("--\n")
+  cat(paste0(plot_varname, '\n'))
 
-    plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
 
-    explore_plot <- ggplot(plot_tbl) +
-        geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
-        facet_wrap(facet_varname, scales = 'free') +
-        xlab(plot_varname) +
-        ylab("Count") +
-        scale_y_continuous(labels = comma) +
-        ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname))
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = 'free') +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = comma) +
+    ggtitle(paste0(facet_varname, '-Faceted Histogram for Variable: ', plot_varname))
 
-    plot(explore_plot)
+  plot(explore_plot)
 }
 ```
 
