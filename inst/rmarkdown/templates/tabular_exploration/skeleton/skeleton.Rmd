@@ -48,7 +48,7 @@ set.seed(42)
 
 ```{r custom_functions, echo=FALSE}
 ### Checks if variable is a date/time
-is_date <- function(.x) inherits(.x, c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
+is_date <- ~ .x %>% inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
 
 
 ### Returns the category of data type passed to it
@@ -69,7 +69,7 @@ create_coltype_list <- function(data_tbl) {
   cat_types <- coltypes %>% unique() %>% sort()
 
   split_lst <- cat_types %>%
-    map(function(x) { coltypes[coltypes %in% x] %>% names })
+    map(function(x) { coltypes[coltypes %in% x] %>% names() })
 
   names(split_lst) <- coltypes %>% unique() %>% sort()
 
@@ -112,16 +112,16 @@ First we load the dataset.
 
 ### We may wish to set column typs
 #data_col_types <- cols(
-#    VAR1 = col_character()
-#   ,VAR2 = col_date()
-#   ,VAR3 = col_number()
+#  VAR1 = col_character(),
+#  VAR2 = col_date(),
+#  VAR3 = col_number()
 #)
 
 ### Data is loaded into dataset rawdata_tbl here
-#rawdata_tbl <- read_csv(DATAFILE
-#                       ,locale    = locale()
-#                       ,col_types = data_col_types
-#                       ,progress  = FALSE
+#rawdata_tbl <- read_csv(DATAFILE,
+#                        locale    = locale(),
+#                        col_types = data_col_types,
+#                        progress  = FALSE
 #                       )
 
 glimpse(rawdata_tbl)
@@ -291,8 +291,7 @@ variables that are not amenable to basic exploration and plotting.
 coltype_lst <- create_coltype_list(data_tbl)
 
 catvar_valuecount_tbl <- data_tbl %>%
-  summarise_at(coltype_lst$split$discrete
-              ,function(x) x %>% unique() %>% length()) %>%
+  summarise_at(coltype_lst$split$discrete, ~ .x %>% unique() %>% length()) %>%
   gather('var_name', 'level_count') %>%
   arrange(-level_count)
 
@@ -324,8 +323,8 @@ we create a vector of those variable names.
 
 ```{r collect_highcount_variables, echo=TRUE}
 highcount_vars <- catvar_valuecount_tbl %>%
-  filter(level_count >= dataexp_level_exclusion_threshold
-        ,level_count < row_count) %>%
+  filter(level_count >= dataexp_level_exclusion_threshold,
+         level_count < row_count) %>%
   pull(var_name)
 
 cat(paste0(highcount_vars, collapse = ', '))
