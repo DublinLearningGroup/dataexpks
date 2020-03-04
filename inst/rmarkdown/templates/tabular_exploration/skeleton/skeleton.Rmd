@@ -17,11 +17,22 @@ output:
 
 
 ```{r import_libraries, echo=FALSE}
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      warning    = FALSE,
+                      message    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11
+                     )
+
 library(conflicted)
 library(tidyverse)
 library(scales)
 library(cowplot)
+library(magrittr)
+library(rlang)
 library(purrr)
+library(vctrs)
 library(forcats)
 library(snakecase)
 
@@ -34,21 +45,14 @@ conflict_prefer('lag',    'dplyr')
 options(width = 80L
        ,warn  = 1)
 
-knitr::opts_chunk$set(tidy       = FALSE
-                     ,cache      = FALSE
-                     ,warning    = FALSE
-                     ,message    = FALSE
-                     ,fig.height =     8
-                     ,fig.width  =    11
-                     )
-
 
 set.seed(42)
 ```
 
 ```{r custom_functions, echo=FALSE}
 ### Checks if variable is a date/time
-is_date <- ~ .x %>% inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
+is_date <- function(x)
+  x %>% inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
 
 
 ### Returns the category of data type passed to it
@@ -56,9 +60,9 @@ categorise_datatype <- function (x) {
   if(all(are_na(x))) return("na")
 
   if(is_date(x))                          "datetime"
-  else if (!is.null(attributes(x)) ||
-           all(is.character(x)))          "discrete"
-  else if (all(is.logical(x)))            "logical"
+  else if (!is_null(attributes(x)) ||
+           all(is_character(x)))          "discrete"
+  else if (all(is_logical(x)))            "logical"
   else                                    "continuous"
 }
 
@@ -261,8 +265,8 @@ missing_plot_tbl <- rawdata_tbl %>%
   select(-label) %>%
   mutate(label_count = pmap_int(., pmax)) %>%
   gather('col', 'count', -label_count) %>%
-  mutate(miss_prop   = count / row_count
-        ,group_label = sprintf('%6.4f', round(label_count / row_count, 4))
+  mutate(miss_prop   = count / row_count,
+         group_label = sprintf('%6.4f', round(label_count / row_count, 4))
         )
 
 ggplot(missing_plot_tbl) +
@@ -428,9 +432,9 @@ for(plot_varname in numeric_vars) {
     ylab("Count") +
     scale_x_continuous(labels = comma) +
     scale_y_continuous(labels = comma) +
-    ggtitle(paste0('Histogram Plot for Variable: ', plot_varname
-                  ,' (', na_count, ' missing values)')
-           ,subtitle = '(red line is mean, green line is median)')
+    ggtitle(paste0('Histogram Plot for Variable: ', plot_varname,
+                   ' (', na_count, ' missing values)'),
+            subtitle = '(red line is mean, green line is median)')
 
   print(explore_plot)
 }
@@ -460,8 +464,8 @@ for(plot_varname in categorical_vars) {
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = comma) +
-    ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname
-                  ,' (', na_count, ' missing values)')) +
+    ggtitle(paste0('Barplot of Counts for Variable: ', plot_varname,
+                   ' (', na_count, ' missing values)')) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
   plot(explore_plot)
@@ -491,8 +495,8 @@ for(plot_varname in datetime_vars) {
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = comma) +
-    ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname
-                  ,' (', na_count, ' missing values)'))
+    ggtitle(paste0('Barplot of Dates/Times in Variable: ', plot_varname,
+                   ' (', na_count, ' missing values)'))
 
   plot(explore_plot)
 }
