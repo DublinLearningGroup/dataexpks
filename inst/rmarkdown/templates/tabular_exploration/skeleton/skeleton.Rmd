@@ -16,7 +16,7 @@ output:
 ---
 
 
-```{r import_libraries, echo=FALSE}
+```{r import_libraries, echo=FALSE, message=FALSE}
 knitr::opts_chunk$set(tidy       = FALSE,
                       cache      = FALSE,
                       warning    = FALSE,
@@ -45,6 +45,7 @@ conflict_prefer('lag',    'dplyr')
 options(width = 80L
        ,warn  = 1)
 
+theme_set(theme_cowplot())
 
 set.seed(42)
 ```
